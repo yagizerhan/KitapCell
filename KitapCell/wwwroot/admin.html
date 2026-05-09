@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kitap Yönetimi — KitapCell</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    .admin-grid { display: grid; grid-template-columns: 1fr 420px; gap: 32px; }
+    .form-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 28px; }
+    .form-section h2 { font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 22px; display: flex; align-items: center; gap: 8px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .autocomplete-wrap { position: relative; }
+    .autocomplete-list {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+      max-height: 180px; overflow-y: auto; display: none;
+    }
+    .autocomplete-list.show { display: block; }
+    .autocomplete-item { padding: 9px 14px; cursor: pointer; font-size: .9rem; }
+    .autocomplete-item:hover { background: var(--bg-hover); }
+    .book-list-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 12px 16px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; margin-bottom: 10px;
+      transition: border-color .2s;
+    }
+    .book-list-item:hover { border-color: var(--accent); }
+    .book-list-item .bname { font-weight: 600; color: #fff; font-size: .95rem; }
+    .book-list-item .bauthor { color: var(--muted); font-size: .8rem; }
+    .book-list-item .actions { margin-left: auto; display: flex; gap: 8px; }
+    @media (max-width:900px) { .admin-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<nav class="navbar" id="navbar"></nav>
+
+<div style="max-width:1100px;margin:0 auto;padding:28px 20px;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
+    <div>
+      <h1 style="font-size:1.5rem;font-weight:800;color:#fff;">📚 Kitap Yönetimi</h1>
+      <p style="color:var(--muted);font-size:.9rem;margin-top:4px;">Kitap ekle, düzenle veya sil</p>
+    </div>
+    <a href="/index.html" class="btn btn-outline btn-sm">← Kataloğa Dön</a>
+  </div>
+
+  <div class="admin-grid">
+
+    <!-- SOL: Kitap Listesi -->
+    <div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <input type="text" id="searchBooks" placeholder="🔍 Kitap ara..." style="flex:1;padding:9px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--text);outline:none;">
+      </div>
+      <div id="bookList">
+        <div class="loader"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- SAĞ: Form -->
+    <div>
+      <div class="form-section">
+        <h2 id="formTitle">➕ Yeni Kitap Ekle</h2>
+        <div id="formError" class="form-error"></div>
+
+        <input type="hidden" id="editBookId" value="">
+
+        <div class="form-group">
+          <label for="fTitle">Kitap Adı *</label>
+          <input type="text" id="fTitle" placeholder="Kitap adını girin">
+        </div>
+
+        <!-- Yazar (autocomplete) -->
+        <div class="form-group">
+          <label for="fAuthor">Yazar *</label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="fAuthor" placeholder="Yazar adı yazın veya seçin" autocomplete="off">
+            <input type="hidden" id="fAuthorId">
+            <div class="autocomplete-list" id="authorDropdown"></div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="fCategory">Kategori *</label>
+            <select id="fCategory" style="width:100%;padding:11px 14px;background:var(--bg-hover);border:1px solid var(--border);border-radius:8px;color:var(--text);outline:none;font-size:.95rem;">
+              <option value="">Seçin...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="fIsbn">ISBN</label>
+            <input type="text" id="fIsbn" placeholder="978-...">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="fPublisher">Yayınevi</label>
+            <input type="text" id="fPublisher" placeholder="Yayınevi adı">
+          </div>
+          <div class="form-group">
+            <label for="fYear">Yayın Yılı</label>
+            <input type="number" id="fYear" placeholder="2024" min="1000" max="2099">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="fPages">Sayfa Sayısı</label>
+            <input type="number" id="fPages" placeholder="350" min="1">
+          </div>
+          <div class="form-group">
+            <label for="fCopies">Kopya Sayısı *</label>
+            <input type="number" id="fCopies" placeholder="1" min="1" value="1">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="fLanguage">Dil</label>
+            <input type="text" id="fLanguage" value="Türkçe" placeholder="Türkçe">
+          </div>
+          <div class="form-group">
+            <label for="fLocation">Raf / Konum</label>
+            <input type="text" id="fLocation" placeholder="A-3">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="fDesc">Açıklama</label>
+          <textarea id="fDesc" style="width:100%;min-height:80px;background:var(--bg-hover);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 14px;font-size:.9rem;font-family:inherit;resize:vertical;outline:none;" placeholder="Kitap hakkında kısa açıklama..."></textarea>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary" id="btnSave" onclick="saveBook()">💾 Kaydet</button>
+          <button class="btn btn-outline" id="btnCancel" onclick="cancelEdit()" style="display:none;">✕ İptal</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="app.js?v=2"></script>
+<script>
+let me = null;
+let authors = [];
+let categories = [];
+let allBooks = [];
+
+async function init() {
+  me = await requireAuth();
+  if (!me) return;
+
+  if (!me.canAddBook && !me.canEditBook && !me.canDeleteBook && me.role !== 'Admin') {
+    document.body.innerHTML = `<div class="form-wrapper"><div class="form-card" style="text-align:center">
+      <div style="font-size:3rem">🚫</div>
+      <h2 style="color:#fff;margin:16px 0 8px">Yetkiniz Yok</h2>
+      <p style="color:var(--muted)">Bu sayfaya erişim için yönetici izni gerekiyor.</p>
+      <a href="/index.html" class="btn btn-primary" style="margin-top:20px;display:inline-flex">Ana Sayfaya Dön</a>
+    </div></div>`;
+    return;
+  }
+
+  buildNavbar(me);
+  await Promise.all([loadAuthors(), loadCategories(), loadBooks()]);
+  setupAuthorAutocomplete();
+
+  if (!me.canAddBook && me.role !== 'Admin') {
+    document.querySelector('.form-section').style.display = 'none';
+  }
+
+  const editId = new URLSearchParams(window.location.search).get('edit');
+  if (editId && (me.canEditBook || me.role === 'Admin')) {
+    await editBook(parseInt(editId));
+  }
+
+  document.getElementById('searchBooks').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    renderBooks(allBooks.filter(b =>
+      b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q)
+    ));
+  });
+}
+
+async function loadAuthors() {
+  const r = await fetch('/api/authors');
+  if (r.ok) authors = await r.json();
+}
+
+async function loadCategories() {
+  const r = await fetch('/api/categories');
+  if (!r.ok) return;
+  categories = await r.json();
+  const sel = document.getElementById('fCategory');
+  categories.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.name;
+    sel.appendChild(o);
+  });
+}
+
+async function loadBooks() {
+  const r = await fetch('/api/books');
+  if (!r.ok) return;
+  const data = await r.json();
+  allBooks = data.books || [];
+  renderBooks(allBooks);
+}
+
+function renderBooks(books) {
+  const el = document.getElementById('bookList');
+  if (!books.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">📭</div><p>Kitap bulunamadı.</p></div>';
+    return;
+  }
+  el.innerHTML = '';
+  books.forEach(b => {
+    const div = document.createElement('div');
+    div.className = 'book-list-item fade-in';
+    div.innerHTML = `
+      <div class="book-cover" style="width:44px;height:60px;font-size:1.6rem;flex-shrink:0;border-radius:6px;">
+        ${b.hasCover ? `<img src="/cover/${b.id}" style="width:44px;height:60px;object-fit:cover;border-radius:6px;">` : '📘'}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div class="bname">${b.title}</div>
+        <div class="bauthor">${b.author} · ${b.category}</div>
+        <div style="margin-top:4px;">
+          <span class="badge ${b.available ? 'badge-success' : 'badge-warning'}" style="font-size:.72rem;">
+            ${b.available ? `✅ ${b.availableCopies}/${b.totalCopies}` : '📤 Ödünçte'}
+          </span>
+          ${b.hasDigitalCopy ? '<span class="badge badge-cyan" style="font-size:.72rem;margin-left:4px;">📄 Dijital</span>' : ''}
+        </div>
+      </div>
+      <div class="actions">
+        ${(me.canEditBook || me.role === 'Admin') ? `<button class="btn btn-outline btn-sm" onclick="editBook(${b.id})">✏️</button>` : ''}
+        ${(me.canDeleteBook || me.role === 'Admin') ? `<button class="btn btn-sm btn-danger" onclick="deleteBook(${b.id},'${b.title.replace(/'/g,"\\'")}')">🗑️</button>` : ''}
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+function setupAuthorAutocomplete() {
+  const inp = document.getElementById('fAuthor');
+  const drop = document.getElementById('authorDropdown');
+  const hid = document.getElementById('fAuthorId');
+
+  inp.addEventListener('input', () => {
+    const q = inp.value.toLowerCase().trim();
+    hid.value = '';
+    if (!q) { drop.classList.remove('show'); return; }
+    const matches = authors.filter(a => a.name.toLowerCase().includes(q));
+    if (!matches.length) { drop.classList.remove('show'); return; }
+    drop.innerHTML = '';
+    matches.slice(0, 8).forEach(a => {
+      const item = document.createElement('div');
+      item.className = 'autocomplete-item';
+      item.textContent = a.name;
+      item.onclick = () => { inp.value = a.name; hid.value = a.id; drop.classList.remove('show'); };
+      drop.appendChild(item);
+    });
+    drop.classList.add('show');
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.autocomplete-wrap')) drop.classList.remove('show');
+  });
+}
+
+function getFormData() {
+  return {
+    title:       document.getElementById('fTitle').value.trim(),
+    authorId:    parseInt(document.getElementById('fAuthorId').value) || null,
+    authorName:  document.getElementById('fAuthor').value.trim(),
+    categoryId:  parseInt(document.getElementById('fCategory').value) || 0,
+    isbn:        document.getElementById('fIsbn').value.trim() || null,
+    publisher:   document.getElementById('fPublisher').value.trim() || null,
+    publishYear: parseInt(document.getElementById('fYear').value) || null,
+    pageCount:   parseInt(document.getElementById('fPages').value) || null,
+    language:    document.getElementById('fLanguage').value.trim() || 'Türkçe',
+    description: document.getElementById('fDesc').value.trim() || null,
+    totalCopies: parseInt(document.getElementById('fCopies').value) || 1,
+    location:    document.getElementById('fLocation').value.trim() || null,
+  };
+}
+
+async function saveBook() {
+  const errBox = document.getElementById('formError');
+  errBox.classList.remove('show');
+  const btn = document.getElementById('btnSave');
+  const editId = document.getElementById('editBookId').value;
+  const body = getFormData();
+
+  if (!body.title) { errBox.textContent = 'Kitap adı zorunludur.'; errBox.classList.add('show'); return; }
+  if (!body.authorId && !body.authorName) { errBox.textContent = 'Yazar zorunludur.'; errBox.classList.add('show'); return; }
+  if (!body.categoryId) { errBox.textContent = 'Kategori seçin.'; errBox.classList.add('show'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Kaydediliyor...';
+
+  const isEdit = !!editId;
+  const url  = isEdit ? `/api/admin/books/${editId}` : '/api/admin/books';
+  const meth = isEdit ? 'PUT' : 'POST';
+
+  const r = await api(meth, url, body);
+  btn.disabled = false;
+  btn.textContent = '💾 Kaydet';
+
+  if (r.ok) {
+    showToast(isEdit ? 'Kitap güncellendi!' : 'Kitap eklendi!', 'success');
+    cancelEdit();
+    await loadBooks();
+  } else {
+    errBox.textContent = r.data?.error ?? 'Hata oluştu.';
+    errBox.classList.add('show');
+  }
+}
+
+async function editBook(id) {
+  const r = await fetch(`/api/admin/books/${id}/edit-data`);
+  if (!r.ok) { showToast('Kitap verileri yüklenemedi.', 'error'); return; }
+  const b = await r.json();
+
+  document.getElementById('editBookId').value = b.id;
+  document.getElementById('fTitle').value     = b.title;
+  document.getElementById('fAuthor').value    = b.authorName;
+  document.getElementById('fAuthorId').value  = b.authorId;
+  document.getElementById('fCategory').value  = b.categoryId;
+  document.getElementById('fIsbn').value      = b.isbn;
+  document.getElementById('fPublisher').value = b.publisher;
+  document.getElementById('fYear').value      = b.publishYear ?? '';
+  document.getElementById('fPages').value     = b.pageCount ?? '';
+  document.getElementById('fLanguage').value  = b.language;
+  document.getElementById('fDesc').value      = b.description;
+  document.getElementById('fCopies').value    = b.totalCopies;
+  document.getElementById('fLocation').value  = b.location;
+
+  document.getElementById('formTitle').textContent = `✏️ Kitap Düzenle: ${b.title}`;
+  document.getElementById('btnSave').textContent   = '💾 Güncelle';
+  document.getElementById('btnCancel').style.display = '';
+
+  document.querySelector('.form-section')?.scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelEdit() {
+  document.getElementById('editBookId').value = '';
+  ['fTitle','fAuthor','fAuthorId','fIsbn','fPublisher','fYear','fPages','fDesc','fLocation'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('fLanguage').value  = 'Türkçe';
+  document.getElementById('fCopies').value    = '1';
+  document.getElementById('fCategory').value  = '';
+  document.getElementById('formTitle').textContent = '➕ Yeni Kitap Ekle';
+  document.getElementById('btnSave').textContent   = '💾 Kaydet';
+  document.getElementById('btnCancel').style.display = 'none';
+  document.getElementById('formError').classList.remove('show');
+}
+
+async function deleteBook(id, title) {
+  if (!confirm(`"${title}" kitabını silmek istediğinize emin misiniz?\nBu işlem geri alınamaz.`)) return;
+  const r = await api('DELETE', `/api/admin/books/${id}`);
+  if (r.ok) {
+    showToast(`"${title}" silindi.`, 'success');
+    await loadBooks();
+  } else {
+    showToast(r.data?.error ?? 'Silinemedi.', 'error');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,331 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Üye Profili — KitapCell</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    .member-profile-layout {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    /* ── Banner / Header ── */
+    .member-banner {
+      background: linear-gradient(135deg, rgba(99,102,241,.25) 0%, rgba(99,102,241,.06) 100%);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      margin-bottom: 24px;
+    }
+
+    .member-big-avatar {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 3px solid var(--accent);
+    }
+    .member-big-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+
+    .member-banner-info { flex: 1; }
+    .member-banner-name {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .member-banner-role {
+      font-size: .9rem;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .member-banner-since {
+      font-size: .8rem;
+      color: var(--muted);
+    }
+
+    /* ── İstatistik kartları ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .stat-icon {
+      font-size: 2rem;
+      flex-shrink: 0;
+    }
+    .stat-val {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .stat-lbl {
+      font-size: .82rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── Şu an okuyor ── */
+    .currently-reading-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color .2s;
+    }
+    .currently-reading-card:hover {
+      border-color: var(--accent);
+      text-decoration: none;
+    }
+    .currently-reading-card .book-emoji {
+      font-size: 2.5rem;
+      flex-shrink: 0;
+    }
+    .currently-reading-info {}
+    .currently-reading-label {
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .currently-reading-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .currently-reading-author {
+      font-size: .85rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .currently-reading-date {
+      font-size: .75rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* ── Yorumlar ── */
+    .review-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      transition: border-color .2s;
+    }
+    .review-item:hover {
+      border-color: var(--accent);
+      text-decoration: none;
+    }
+    .review-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .review-book-title {
+      font-weight: 700;
+      color: #fff;
+      font-size: .95rem;
+      flex: 1;
+    }
+    .review-stars {
+      color: var(--warning);
+      font-size: .9rem;
+      flex-shrink: 0;
+    }
+    .review-date {
+      font-size: .75rem;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .review-text {
+      font-size: .88rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    @media (max-width: 600px) {
+      .member-banner { flex-direction: column; text-align: center; }
+      .stats-row { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<nav class="navbar" id="navbar"></nav>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="content">
+    <div class="member-profile-layout fade-in">
+
+      <div style="margin-bottom:20px;">
+        <a href="/members.html" class="btn btn-outline btn-sm">← Üyelere Dön</a>
+      </div>
+
+      <div id="loader" class="loader"><div class="spinner"></div></div>
+      <div id="profileContent" style="display:none;"></div>
+
+    </div>
+  </main>
+</div>
+
+<script src="app.js?v=2"></script>
+<script>
+const memberId = new URLSearchParams(window.location.search).get('id');
+
+async function init() {
+  const user = await getUser();
+  // guest allowed — user may be null
+  buildNavbar(user);
+  buildSidebar(user);
+
+  if (!memberId) { window.location.href = '/members.html'; return; }
+  await loadMember();
+}
+
+async function loadMember() {
+  const r = await fetch(`/api/members/${memberId}`);
+  const loaderEl = document.getElementById('loader');
+
+  if (!r.ok) {
+    loaderEl.innerHTML = `<div class="empty"><div class="icon">❌</div><p>Üye bulunamadı.</p></div>`;
+    return;
+  }
+
+  const m = await r.json();
+  document.title = `${m.name} — KitapCell`;
+  loaderEl.style.display = 'none';
+  renderProfile(m);
+}
+
+function renderProfile(m) {
+  const el = document.getElementById('profileContent');
+  el.style.display = 'block';
+
+  const initials = m.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+  const avatarHtml = m.hasProfileImage
+    ? `<img src="/api/users/${m.id}/avatar" alt="${escapeHtml(m.name)}">`
+    : escapeHtml(initials);
+
+  const roleLabel = m.role === 'Admin' ? '🛡️ Sistem Yöneticisi' : '📖 Kütüphane Üyesi';
+
+  // Şu an okuyor
+  let readingHtml = '';
+  if (m.currentlyReading) {
+    const cr = m.currentlyReading;
+    readingHtml = `
+      <div class="section-title">📖 Son Okuduğu Kitap</div>
+      <a href="/book.html?id=${cr.bookId}" class="currently-reading-card">
+        <span class="book-emoji">📚</span>
+        <div class="currently-reading-info">
+          <div class="currently-reading-label">Son okuma</div>
+          <div class="currently-reading-title">${escapeHtml(cr.title)}</div>
+          <div class="currently-reading-author">${escapeHtml(cr.author)}</div>
+          <div class="currently-reading-date">🕒 ${escapeHtml(cr.lastReadDate)}</div>
+        </div>
+      </a>`;
+  }
+
+  // Son yorumlar
+  let reviewsHtml = '';
+  if (m.recentReviews && m.recentReviews.length > 0) {
+    const items = m.recentReviews.map(rv => {
+      const stars = '⭐'.repeat(rv.score) + '☆'.repeat(5 - rv.score);
+      return `
+        <a href="/book.html?id=${rv.bookId}" class="review-item">
+          <div class="review-header">
+            <span class="review-book-title">${escapeHtml(rv.title)}</span>
+            <span class="review-stars">${stars}</span>
+            <span class="review-date">${escapeHtml(rv.date)}</span>
+          </div>
+          <div class="review-text">${escapeHtml(rv.review)}</div>
+        </a>`;
+    }).join('');
+    reviewsHtml = `<div class="section-title">💬 Son Yorumları</div>${items}`;
+  } else {
+    reviewsHtml = `
+      <div class="section-title">💬 Son Yorumları</div>
+      <div class="empty" style="padding:30px;">
+        <div class="icon" style="font-size:2rem;">💬</div>
+        <p>Henüz yorum yapılmamış.</p>
+      </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="member-banner">
+      <div class="member-big-avatar">${avatarHtml}</div>
+      <div class="member-banner-info">
+        <div class="member-banner-name">${escapeHtml(m.name)}</div>
+        <div class="member-banner-role">${roleLabel}</div>
+        <div class="member-banner-since">📅 ${escapeHtml(m.registrationDate)} tarihinden beri üye</div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <span class="stat-icon">📚</span>
+        <div>
+          <div class="stat-val">${m.readCount}</div>
+          <div class="stat-lbl">Kitap Okundu</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">⭐</span>
+        <div>
+          <div class="stat-val">${m.rateCount}</div>
+          <div class="stat-lbl">Değerlendirme</div>
+        </div>
+      </div>
+    </div>
+
+    ${readingHtml}
+    ${reviewsHtml}
+  `;
+}
+
+init();
+</script>
+</body>
+</html>

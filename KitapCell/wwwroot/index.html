@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KitapCell — Kütüphane</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.ico">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar" id="navbar"></nav>
+
+<!-- Layout -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div id="sidebarNav"></div>
+    <h3 style="margin-top:18px;">Kategoriler</h3>
+    <ul class="cat-list" id="catList">
+      <li><button class="active" data-id="">Tümü</button></li>
+    </ul>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="content">
+    <div class="page-header">
+      <span class="page-title" id="pageTitle">Tüm Kitaplar</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="bookCount" class="badge badge-muted"></span>
+        <div id="adminBtnWrap" style="display:none;">
+          <a href="/admin.html" class="btn btn-primary btn-sm">➕ Kitap Ekle</a>
+        </div>
+      </div>
+    </div>
+    <div id="booksContainer">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+  </main>
+</div>
+
+<script src="app.js?v=2"></script>
+<script>
+let allBooks = [];
+let selectedCat = '';
+let currentQ    = '';
+
+async function init() {
+  const user = await getUser();
+  // guest allowed — user may be null
+  buildNavbar(user);
+  buildSidebar(user);
+
+  // Kitap Ekle butonu — yetkiliyse göster
+  if (user && (user.canAddBook || user.role === 'Admin')) {
+    document.getElementById('adminBtnWrap').style.display = '';
+  }
+
+  // URL'den arama parametresi al
+  const params = new URLSearchParams(window.location.search);
+  currentQ = params.get('q') || '';
+
+  await Promise.all([loadCategories(), loadBooks()]);
+}
+
+async function loadCategories() {
+  const r = await fetch('/api/categories');
+  if (!r.ok) return;
+  const cats = await r.json();
+  const list  = document.getElementById('catList');
+  cats.forEach(c => {
+    const li  = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.textContent = c.name;
+    btn.dataset.id  = c.id;
+    btn.onclick = () => setCategory(c.id, btn);
+    li.appendChild(btn);
+    list.appendChild(li);
+  });
+
+  // İlk butona tıklama listener
+  list.querySelector('button').onclick = () => setCategory('', list.querySelector('button'));
+}
+
+function setCategory(id, btn) {
+  selectedCat = id;
+  document.querySelectorAll('#catList button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderBooks();
+}
+
+async function loadBooks() {
+  const url = currentQ ? `/api/books?q=${encodeURIComponent(currentQ)}` : '/api/books';
+  const r = await fetch(url);
+  if (!r.ok) { showError(); return; }
+  const data = await r.json();
+  allBooks = data.books || [];
+  renderBooks();
+}
+
+function renderBooks() {
+  const container = document.getElementById('booksContainer');
+  let books = allBooks;
+
+  if (selectedCat)
+    books = books.filter(b => b.categoryId == selectedCat);
+
+  document.getElementById('bookCount').textContent = `${books.length} kitap`;
+  document.getElementById('pageTitle').textContent = currentQ
+    ? `"${currentQ}" için sonuçlar`
+    : (selectedCat ? document.querySelector('#catList .active')?.textContent : 'Tüm Kitaplar');
+
+  if (books.length === 0) {
+    container.innerHTML = `
+      <div class="empty">
+        <div class="icon">📭</div>
+        <p>Kitap bulunamadı.</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="books-grid fade-in" id="grid"></div>`;
+  const grid = document.getElementById('grid');
+
+  books.forEach(b => {
+    const statusBadge = b.hasDigitalCopy
+      ? `<span class="badge badge-cyan">📄 Dijital</span>`
+      : b.available
+        ? `<span class="badge badge-success">✅ Müsait</span>`
+        : `<span class="badge badge-warning">📤 Ödünçte</span>`;
+
+    const ratingHtml = b.averageRating > 0
+      ? `<span class="stars">⭐ ${b.averageRating.toFixed(1)}</span>`
+      : `<span class="stars" style="color:var(--muted)">☆ —</span>`;
+
+    const card = document.createElement('a');
+    card.className = 'book-card';
+    card.href      = `/book.html?id=${b.id}`;
+    card.innerHTML = `
+      <div class="book-cover">
+        ${b.hasCover ? `<img src="/cover/${b.id}" alt="${b.title}" loading="lazy">` : '📘'}
+      </div>
+      <div class="book-info">
+        <div class="book-title">${b.title}</div>
+        <div class="book-author">${b.author}</div>
+        <div class="book-footer">
+          ${ratingHtml}
+          ${statusBadge}
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function showError() {
+  document.getElementById('booksContainer').innerHTML = `
+    <div class="empty">
+      <div class="icon">⚠️</div>
+      <p>Kitaplar yüklenirken hata oluştu.</p>
+    </div>`;
+}
+
+init();
+</script>
+</body>
+</html>

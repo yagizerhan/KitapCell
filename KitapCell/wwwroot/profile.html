@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KitapCell — Profilim</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    .profile-layout {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+    
+    .profile-sidebar {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    
+    /* ── Profil Avatar ── */
+    .profile-avatar-wrap {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      border: 3px solid var(--accent);
+      background: var(--bg-hover);
+      /* padding YOK — inner fill absolute ile yapılıyor */
+    }
+
+    /* İç daire: padding boşluğunu simüle etmek için 4px inset */
+    .profile-avatar-wrap #avatarContainer {
+      position: absolute;
+      inset: 4px;          /* dört taraftan 4px boşluk */
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-hover);
+    }
+
+    .profile-avatar-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      display: block;
+    }
+
+    .profile-avatar-letters {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 2.2rem;
+      font-weight: bold;
+    }
+
+    .avatar-upload-btn {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 36px;
+      height: 36px;
+      background: var(--bg-card);
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 1rem;
+      z-index: 2;          /* avatarContainer'ın üstünde kalır */
+      transition: background .2s, color .2s, transform .2s;
+    }
+
+    .avatar-upload-btn:hover {
+      background: var(--accent);
+      color: #fff;
+      transform: scale(1.1);
+    }
+    
+    .profile-nav {
+      list-style: none;
+      margin-top: 24px;
+      text-align: left;
+    }
+    
+    .profile-nav li button {
+      width: 100%;
+      text-align: left;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      background: none;
+      color: var(--text);
+      font-size: .95rem;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .profile-nav li button:hover {
+      background: var(--bg-hover);
+    }
+    
+    .profile-nav li button.active {
+      background: var(--accent-g);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    
+    .profile-content {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      box-shadow: var(--shadow);
+    }
+    
+    .profile-content h2 {
+      margin-bottom: 24px;
+      font-size: 1.4rem;
+      color: #fff;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+    
+    .tab-pane {
+      display: none;
+      animation: fadeIn .3s ease;
+    }
+    
+    .tab-pane.active {
+      display: block;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    
+    @media (max-width: 768px) {
+      .profile-layout {
+        grid-template-columns: 1fr;
+      }
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar" id="navbar"></nav>
+
+<div class="content">
+  <div class="profile-layout fade-in">
+    
+    <!-- Sol Sidebar -->
+    <aside class="profile-sidebar">
+      <div class="profile-avatar-wrap">
+        <div id="avatarContainer">
+          <!-- Avatar JS'ten doldurulacak -->
+        </div>
+        <button class="avatar-upload-btn" onclick="document.getElementById('avatarInput').click()" title="Fotoğraf Yükle">📷</button>
+        <input type="file" id="avatarInput" accept="image/png, image/jpeg, image/jpg, image/webp" style="display:none" onchange="uploadAvatar(this)">
+      </div>
+      
+      <h3 id="sidebarName" style="color:#fff;font-size:1.2rem;margin-bottom:4px;">Yükleniyor...</h3>
+      <p id="sidebarRole" style="color:var(--muted);font-size:.85rem;margin-bottom:16px;">—</p>
+      
+      <ul class="profile-nav">
+        <li><button class="active" onclick="switchTab('tabInfo', this)">👤 Kişisel Bilgiler</button></li>
+        <li><button onclick="switchTab('tabSecurity', this)">🔒 Güvenlik & Şifre</button></li>
+      </ul>
+    </aside>
+    
+    <!-- Sağ İçerik -->
+    <main class="profile-content">
+      
+      <!-- Kişisel Bilgiler Sekmesi -->
+      <div id="tabInfo" class="tab-pane active">
+        <h2>Kişisel Bilgiler</h2>
+        
+        <form id="infoForm" onsubmit="updateProfile(event)">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Adınız</label>
+              <input type="text" id="txtFirstName" required>
+            </div>
+            <div class="form-group">
+              <label>Soyadınız</label>
+              <input type="text" id="txtLastName" required>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>E-Posta Adresi</label>
+            <input type="email" id="txtEmail" disabled style="background:var(--bg);color:var(--muted);cursor:not-allowed;">
+            <p style="font-size: .8rem; color: var(--muted); margin-top: 4px;">E-posta adresinizi değiştirmek için yöneticiyle iletişime geçin.</p>
+          </div>
+          
+          <div class="form-group">
+            <label>Telefon Numarası</label>
+            <input type="tel" id="txtPhone" placeholder="05XX XXX XX XX">
+          </div>
+          
+          <div style="margin-top:24px;">
+            <button type="submit" class="btn btn-primary" id="btnSaveInfo">💾 Bilgileri Kaydet</button>
+          </div>
+        </form>
+      </div>
+      
+      <!-- Şifre Değiştirme Sekmesi -->
+      <div id="tabSecurity" class="tab-pane">
+        <h2>Şifre Değiştir</h2>
+        
+        <div id="pwdError" class="form-error"></div>
+        
+        <form id="pwdForm" onsubmit="updatePassword(event)">
+          <div class="form-group">
+            <label>Mevcut Şifreniz</label>
+            <input type="password" id="txtCurPwd" required>
+          </div>
+          <div class="form-group">
+            <label>Yeni Şifre</label>
+            <input type="password" id="txtNewPwd" required minlength="6">
+          </div>
+          <div class="form-group">
+            <label>Yeni Şifre (Yeniden)</label>
+            <input type="password" id="txtNewPwd2" required minlength="6">
+          </div>
+          
+          <div style="margin-top:24px;">
+            <button type="submit" class="btn btn-warning" id="btnSavePwd">🔑 Şifreyi Güncelle</button>
+          </div>
+        </form>
+      </div>
+      
+    </main>
+    
+  </div>
+</div>
+
+<script src="app.js?v=2"></script>
+<script>
+async function initProfile() {
+  const user = await requireAuth();
+  if (!user) return;
+  buildNavbar(user);
+  
+  // Fill data
+  document.getElementById('sidebarName').textContent = user.name;
+  document.getElementById('sidebarRole').textContent = user.role === 'Admin' ? 'Sistem Yöneticisi' : 'Kütüphane Üyesi';
+  
+  document.getElementById('txtFirstName').value = user.firstName || '';
+  document.getElementById('txtLastName').value = user.lastName || '';
+  document.getElementById('txtEmail').value = user.email || '';
+  document.getElementById('txtPhone').value = user.phone || '';
+  
+  renderAvatar(user);
+}
+
+function renderAvatar(user) {
+  const container = document.getElementById('avatarContainer');
+  if (user.hasProfileImage) {
+    container.innerHTML = `<img src="/api/me/avatar?t=${Date.now()}" alt="Profil Fotoğrafı">`;
+  } else {
+    const initials = (user.name || '?').split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+    container.innerHTML = `<div class="profile-avatar-letters">${initials}</div>`;
+  }
+}
+
+function switchTab(tabId, btn) {
+  document.querySelectorAll('.tab-pane').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.profile-nav button').forEach(b => b.classList.remove('active'));
+  
+  document.getElementById(tabId).classList.add('active');
+  btn.classList.add('active');
+}
+
+async function updateProfile(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnSaveInfo');
+  btn.disabled = true;
+  btn.textContent = 'Kaydediliyor...';
+  
+  const payload = {
+    firstName: document.getElementById('txtFirstName').value,
+    lastName: document.getElementById('txtLastName').value,
+    phone: document.getElementById('txtPhone').value
+  };
+  
+  const res = await api('PUT', '/api/me/profile', payload);
+  if (res.ok) {
+    showToast('Profil bilgileri güncellendi.', 'success');
+    document.getElementById('sidebarName').textContent = res.data.name;
+    // Navbar'ı da güncellemek için
+    buildNavbar(res.data);
+  } else {
+    showToast(res.data.error || 'Güncelleme başarısız.', 'error');
+  }
+  
+  btn.disabled = false;
+  btn.textContent = '💾 Bilgileri Kaydet';
+}
+
+async function updatePassword(e) {
+  e.preventDefault();
+  
+  const curPwd = document.getElementById('txtCurPwd').value;
+  const newPwd = document.getElementById('txtNewPwd').value;
+  const newPwd2 = document.getElementById('txtNewPwd2').value;
+  const errBox = document.getElementById('pwdError');
+  errBox.classList.remove('show');
+  
+  if (newPwd !== newPwd2) {
+    errBox.textContent = 'Yeni şifreler eşleşmiyor.';
+    errBox.classList.add('show');
+    return;
+  }
+  
+  const btn = document.getElementById('btnSavePwd');
+  btn.disabled = true;
+  btn.textContent = 'Lütfen Bekleyin...';
+  
+  const res = await api('PUT', '/api/me/password', { currentPassword: curPwd, newPassword: newPwd });
+  if (res.ok) {
+    showToast('Şifreniz başarıyla değiştirildi.', 'success');
+    document.getElementById('pwdForm').reset();
+  } else {
+    errBox.textContent = res.data.error || 'Bir hata oluştu.';
+    errBox.classList.add('show');
+  }
+  
+  btn.disabled = false;
+  btn.textContent = '🔑 Şifreyi Güncelle';
+}
+
+async function uploadAvatar(input) {
+  if (!input.files || !input.files[0]) return;
+  
+  const file = input.files[0];
+  const formData = new FormData();
+  formData.append('avatar', file);
+  
+  showToast('Fotoğraf yükleniyor, lütfen bekleyin...', 'info');
+  
+  try {
+    const res = await fetch('/api/me/avatar', {
+      method: 'POST',
+      body: formData // Content-Type belirtilmezse fetch otomatik ayarlar
+    });
+    
+    if (res.ok) {
+      const user = await res.json();
+      showToast('Profil fotoğrafı güncellendi.', 'success');
+      renderAvatar(user);
+      buildNavbar(user); // Navbar avatar'ı da yenilensin
+    } else {
+      const data = await res.json();
+      showToast(data.error || 'Yükleme başarısız.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucuya bağlanılamadı.', 'error');
+  }
+  
+  input.value = ''; // Reset
+}
+
+initProfile();
+</script>
+</body>
+</html>

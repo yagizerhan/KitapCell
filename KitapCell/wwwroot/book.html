@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kitap Detayı — KitapCell</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.ico">
+</head>
+<body>
+<nav class="navbar" id="navbar"></nav>
+
+<div style="max-width:960px;margin:0 auto;padding:28px 24px;">
+
+  <div id="loader" class="loader"><div class="spinner"></div></div>
+  <div id="content" style="display:none;" class="fade-in"></div>
+
+</div>
+
+<script src="app.js?v=2"></script>
+<script>
+const bookId = new URLSearchParams(window.location.search).get('id');
+let me = null;
+let mySelectedScore = 0;
+
+async function init() {
+  if (!bookId) { window.location.href = '/index.html'; return; }
+  me = await getUser(); // null for guests
+  buildNavbar(me);
+  await loadBook();
+}
+
+async function loadBook() {
+  const r = await fetch(`/api/books/${bookId}`);
+  if (!r.ok) {
+    document.getElementById('loader').innerHTML = `<div class="empty"><div class="icon">❌</div><p>Kitap bulunamadı.</p></div>`;
+    return;
+  }
+  const b = await r.json();
+  renderBook(b);
+}
+
+function renderBook(b) {
+  document.title = `${b.title} — KitapCell`;
+  document.getElementById('loader').style.display = 'none';
+  const el = document.getElementById('content');
+  el.style.display = 'block';
+
+  const statusBadge = b.hasDigitalCopy
+    ? `<span class="badge badge-cyan" style="font-size:.9rem">📄 Dijital Kopya Mevcut</span>`
+    : b.available
+      ? `<span class="badge badge-success" style="font-size:.9rem">✅ ${b.availableCopies}/${b.totalCopies} Kopyası Müsait</span>`
+      : `<span class="badge badge-warning" style="font-size:.9rem">📤 Tüm kopyalar ödünçte</span>`;
+
+  const existingScore = b.myRating?.score ?? 0;
+  mySelectedScore = existingScore;
+
+  el.innerHTML = `
+    <a href="javascript:history.back()" class="btn btn-outline btn-sm" style="margin-bottom:20px;">
+      ← Geri
+    </a>
+
+    <div class="detail-layout">
+      <div>
+        <div class="detail-cover">
+          ${b.hasCover ? `<img src="/cover/${b.id}" alt="${escapeHtml(b.title)}">` : '📘'}
+        </div>
+        ${b.hasDigitalCopy ? `
+          <a href="/reader.html?id=${b.id}" class="btn btn-primary btn-full" style="margin-top:14px;">
+            📖 Online Oku (${b.fileType ? b.fileType.toUpperCase() : 'PDF'})
+          </a>` : ''}
+      </div>
+
+      <div class="detail-info">
+        <h1>${escapeHtml(b.title)}</h1>
+        <div class="detail-author">✏️ ${escapeHtml(b.author)} &nbsp;|&nbsp; 🗂️ ${escapeHtml(b.category)}</div>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <span style="color:var(--warning);font-size:1.3rem;">${renderStarsSmall(b.averageRating)}</span>
+          <span style="font-size:1rem;font-weight:700;color:#fff;">${b.averageRating.toFixed(1)}</span>
+          <span style="color:var(--muted);font-size:.85rem;">(${b.ratingCount} değerlendirme)</span>
+        </div>
+
+        ${statusBadge}
+
+        <div class="detail-meta" style="margin-top:16px;">
+          ${b.publisher !== '—' ? `<div class="meta-item">🏢 <strong>${escapeHtml(b.publisher)}</strong></div>` : ''}
+          ${b.publishYear !== '—' ? `<div class="meta-item">📅 <strong>${escapeHtml(String(b.publishYear))}</strong></div>` : ''}
+          ${b.pageCount !== '—' ? `<div class="meta-item">📄 <strong>${escapeHtml(String(b.pageCount))} sayfa</strong></div>` : ''}
+          <div class="meta-item">🌐 <strong>${escapeHtml(b.language)}</strong></div>
+          ${b.isbn ? `<div class="meta-item">📖 <strong>${escapeHtml(b.isbn)}</strong></div>` : ''}
+        </div>
+
+        ${b.description ? `<div class="detail-desc">${escapeHtml(b.description)}</div>` : ''}
+
+        <div style="margin-top:20px;display:flex;flex-wrap:wrap;gap:10px;">
+          ${me ? `
+            <button id="favBtn" class="btn btn-outline btn-sm" onclick="toggleFav()">
+              ${b.isFavorite ? '❤️ Favoriden Çıkar' : '🤍 Favorilere Ekle'}
+            </button>` : `
+            <a href="/login.html" class="btn btn-outline btn-sm">🤍 Favoriye Eklemek için Giriş Yap</a>`
+          }
+          ${me && (me.canEditBook || me.role === 'Admin')
+            ? `<a href="/admin.html?edit=${b.id}" class="btn btn-outline btn-sm">✏️ Düzenle</a>` : ''}
+          ${me && (me.canDeleteBook || me.role === 'Admin')
+            ? `<button class="btn btn-sm btn-danger" onclick="deleteThisBook(${b.id}, '${escapeHtml(b.title).replace(/'/g,"\\'")}')">🗑️ Sil</button>` : ''}
+        </div>
+      </div>
+    </div>
+
+    ${me ? `
+    <div class="section-title">⭐ Değerlendirme Yap</div>
+    <div class="my-rating-form">
+      <div style="font-size:.9rem;color:var(--muted);margin-bottom:10px;">Puanınız:</div>
+      <div class="stars-big" id="starPicker">
+        ${[1,2,3,4,5].map(i => `<span data-score="${i}" onclick="setScore(${i})" class="${i <= existingScore ? 'active' : ''}">${i <= existingScore ? '⭐' : '☆'}</span>`).join('')}
+      </div>
+      <textarea id="reviewBox" placeholder="Yorumunuzu yazın (isteğe bağlı)">${escapeHtml(b.myRating?.review ?? '')}</textarea>
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        <button class="btn btn-primary btn-sm" onclick="submitRating()">💾 Değerlendirmeyi Kaydet</button>
+      </div>
+    </div>` : `
+    <div class="my-rating-form" style="text-align:center;padding:24px;">
+      <p style="color:var(--muted);margin-bottom:14px;">🔒 Yorum ve puan vermek için giriş yapmanız gerekiyor.</p>
+      <a href="/login.html" class="btn btn-primary btn-sm">Giriş Yap</a>
+      &nbsp;
+      <a href="/register.html" class="btn btn-outline btn-sm">Kayıt Ol</a>
+    </div>`
+    }
+
+    <div class="section-title">💬 Okuyucu Yorumları</div>
+    <div id="ratingsList">
+      ${b.ratings && b.ratings.length > 0
+        ? b.ratings.map(r => `
+          <div class="rating-card">
+            <div class="rating-header">
+              <span class="user-avatar" style="width:30px;height:30px;font-size:.72rem;">${escapeHtml((r.user||'?').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase())}</span>
+              <span class="rating-user">${escapeHtml(r.user)}</span>
+              <span style="color:var(--warning);">${'⭐'.repeat(r.score)}</span>
+              <span class="rating-date">${escapeHtml(r.date)}</span>
+            </div>
+            ${r.review ? `<div class="rating-review">${escapeHtml(r.review)}</div>` : ''}
+          </div>`).join('')
+        : `<div class="empty" style="padding:30px"><div class="icon" style="font-size:2rem">💬</div><p>Henüz yorum yapılmamış. İlk yorumu siz yapın!</p></div>`
+      }
+    </div>
+  `;
+}
+
+function setScore(score) {
+  mySelectedScore = score;
+  document.querySelectorAll('#starPicker span').forEach((s, i) => {
+    s.textContent = i < score ? '⭐' : '☆';
+    s.classList.toggle('active', i < score);
+  });
+}
+
+async function submitRating() {
+  if (mySelectedScore < 1) { showToast('Lütfen bir puan seçin.', 'warning'); return; }
+  const review = document.getElementById('reviewBox')?.value?.trim() ?? '';
+  const r = await api('POST', `/api/books/${bookId}/rate`, { score: mySelectedScore, review });
+  if (r.ok) {
+    showToast('Değerlendirmeniz kaydedildi!', 'success');
+    setTimeout(() => location.reload(), 1000);
+  } else {
+    showToast(r.data?.error ?? 'Hata oluştu.', 'error');
+  }
+}
+
+async function toggleFav() {
+  if (!me) { window.location.href = '/login.html'; return; }
+  const r = await api('POST', `/api/books/${bookId}/favorite`);
+  if (r.ok) {
+    const btn = document.getElementById('favBtn');
+    const added = r.data.isFavorite;
+    btn.innerHTML = added ? '❤️ Favoriden Çıkar' : '🤍 Favorilere Ekle';
+    showToast(added ? 'Favorilere eklendi!' : 'Favorilerden çıkarıldı.', 'success');
+  }
+}
+
+async function deleteThisBook(id, title) {
+  if (!confirm(`"${title}" kitabını silmek istediğinize emin misiniz?\nBu işlem geri alınamaz.`)) return;
+  const r = await api('DELETE', `/api/admin/books/${id}`);
+  if (r.ok) {
+    showToast(`"${title}" silindi.`, 'success');
+    setTimeout(() => window.location.href = '/index.html', 1000);
+  } else {
+    showToast(r.data?.error ?? 'Silinemedi.', 'error');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

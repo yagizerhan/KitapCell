@@ -1,0 +1,248 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Üyeler — KitapCell</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    .members-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 18px;
+    }
+
+    .member-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color .2s, transform .2s, box-shadow .2s;
+      cursor: pointer;
+    }
+    .member-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(99,102,241,.18);
+      text-decoration: none;
+    }
+
+    .member-card-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .member-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 2px solid var(--border);
+    }
+    .member-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+
+    .member-meta { flex: 1; min-width: 0; }
+    .member-name {
+      font-weight: 700;
+      color: #fff;
+      font-size: 1rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .member-role {
+      font-size: .75rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .member-stats {
+      display: flex;
+      gap: 16px;
+    }
+    .member-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .member-stat-val {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .member-stat-lbl {
+      font-size: .7rem;
+      color: var(--muted);
+    }
+
+    .member-reading {
+      background: var(--bg-hover);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: .82rem;
+      color: var(--muted);
+      line-height: 1.5;
+      border-left: 3px solid var(--accent);
+    }
+    .member-reading strong { color: var(--text); display: block; }
+
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 16px;
+      margin-bottom: 22px;
+    }
+    .search-bar input {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: .95rem;
+      font-family: inherit;
+    }
+    .search-bar input::placeholder { color: var(--muted); }
+  </style>
+</head>
+<body>
+<nav class="navbar" id="navbar"></nav>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="content">
+    <div style="max-width:1100px;margin:0 auto;padding-top:4px;">
+      <div class="page-header" style="margin-bottom:22px;">
+        <span class="page-title">👥 Üyeler</span>
+        <span id="memberCount" class="badge badge-muted"></span>
+      </div>
+
+      <div class="search-bar">
+        <span style="color:var(--muted);">🔍</span>
+        <input type="text" id="searchInput" placeholder="İsme göre ara..." oninput="filterMembers()">
+      </div>
+
+      <div id="container">
+        <div class="loader"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="app.js?v=2"></script>
+<script>
+let allMembers = [];
+
+async function init() {
+  const user = await getUser();
+  // guest allowed — user may be null
+  buildNavbar(user);
+  buildSidebar(user);
+  await loadMembers();
+}
+
+async function loadMembers() {
+  const el = document.getElementById('container');
+  const r = await fetch('/api/members');
+
+  if (!r.ok) {
+    el.innerHTML = '<div class="empty"><div class="icon">⚠️</div><p>Üyeler yüklenemedi.</p></div>';
+    return;
+  }
+
+  allMembers = await r.json();
+  renderMembers(allMembers);
+}
+
+function renderMembers(members) {
+  const el = document.getElementById('container');
+  document.getElementById('memberCount').textContent = `${members.length} üye`;
+
+  if (!members.length) {
+    el.innerHTML = `<div class="empty"><div class="icon">👤</div><p>Üye bulunamadı.</p></div>`;
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'members-grid fade-in';
+
+  members.forEach(m => {
+    const initials = m.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+
+    const avatarHtml = m.hasProfileImage
+      ? `<img src="/api/users/${m.id}/avatar" alt="${escapeHtml(m.name)}">`
+      : escapeHtml(initials);
+
+    const roleLabel = m.role === 'Admin' ? '🛡️ Yönetici' : '📖 Üye';
+
+    const readingHtml = m.currentlyReading
+      ? `<div class="member-reading">
+           <strong>${escapeHtml(m.currentlyReading.title)}</strong>
+           ${escapeHtml(m.currentlyReading.author)}
+         </div>`
+      : '';
+
+    const card = document.createElement('a');
+    card.className = 'member-card';
+    card.href = `/member.html?id=${m.id}`;
+    card.innerHTML = `
+      <div class="member-card-top">
+        <div class="member-avatar">${avatarHtml}</div>
+        <div class="member-meta">
+          <div class="member-name">${escapeHtml(m.name)}</div>
+          <div class="member-role">${roleLabel}</div>
+        </div>
+      </div>
+      <div class="member-stats">
+        <div class="member-stat">
+          <span class="member-stat-val">${m.readCount}</span>
+          <span class="member-stat-lbl">Kitap</span>
+        </div>
+        <div class="member-stat">
+          <span class="member-stat-val">${m.rateCount}</span>
+          <span class="member-stat-lbl">Yorum</span>
+        </div>
+      </div>
+      ${readingHtml}
+    `;
+    grid.appendChild(card);
+  });
+
+  el.innerHTML = '';
+  el.appendChild(grid);
+}
+
+function filterMembers() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (!q) { renderMembers(allMembers); return; }
+  renderMembers(allMembers.filter(m => m.name.toLowerCase().includes(q)));
+}
+
+init();
+</script>
+</body>
+</html>

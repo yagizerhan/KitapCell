@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Okuyucu — KitapCell</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Üst bar ── */
+    .reader-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 20px;
+      height: 52px;
+      min-height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .reader-title {
+      font-weight: 700;
+      font-size: 1rem;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .reader-badge {
+      font-size: .72rem;
+      padding: 3px 9px;
+      border-radius: 20px;
+      background: var(--primary-dim, rgba(99,102,241,.18));
+      color: var(--primary);
+      font-weight: 600;
+      letter-spacing: .5px;
+    }
+    .save-status {
+      font-size: .78rem;
+      color: var(--muted);
+      transition: color .3s;
+      white-space: nowrap;
+    }
+    .save-status.saved { color: #4ade80; }
+
+    /* ── Loader overlay ── */
+    #frameLoader {
+      position: absolute;
+      inset: 52px 0 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      z-index: 10;
+      flex-direction: column;
+      gap: 18px;
+    }
+    #frameLoader .big-spinner {
+      width: 56px; height: 56px;
+      border: 4px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    #frameLoader p { color: var(--muted); font-size: .95rem; }
+
+    /* ── Iframe çerçeve ── */
+    #readerFrame {
+      flex: 1;
+      width: 100%;
+      border: none;
+      background: #fff;
+    }
+
+    /* ── Hata ekranı ── */
+    #errorScreen {
+      display: none;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+      text-align: center;
+      padding: 40px;
+    }
+    #errorScreen .icon { font-size: 3.5rem; }
+    #errorScreen h2 { font-size: 1.3rem; color: var(--text); }
+    #errorScreen p  { color: var(--muted); max-width: 480px; line-height: 1.7; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- Üst bar -->
+<div class="reader-bar">
+  <a href="javascript:history.back()" class="btn btn-outline btn-sm" id="backBtn">← Geri</a>
+  <span class="reader-title" id="readerTitle">Yükleniyor...</span>
+  <span class="reader-badge" id="fileTypeBadge">PDF</span>
+  <span class="save-status" id="saveStatus">📖 Okunuyor</span>
+</div>
+
+<!-- Yüklenme göstergesi -->
+<div id="frameLoader">
+  <div class="big-spinner"></div>
+  <p id="loaderText">Kitap hazırlanıyor...</p>
+</div>
+
+<!-- Hata ekranı -->
+<div id="errorScreen">
+  <div class="icon">📚</div>
+  <h2>Kitap açılamadı</h2>
+  <p id="errorMsg">Bu kitabın dijital kopyası bulunamadı veya erişim yetkiniz yok.</p>
+  <a href="javascript:history.back()" class="btn btn-primary">← Kitap Sayfasına Dön</a>
+</div>
+
+<!-- Okuyucu iframe -->
+<iframe id="readerFrame" allowfullscreen allow="fullscreen"></iframe>
+
+<script src="app.js?v=2"></script>
+<script>
+// ── Parametreler ─────────────────────────────────────────────────────────────
+const bookId = new URLSearchParams(window.location.search).get('id');
+let saveTimer   = null;
+let lastSavedPage = 0;
+let bookFileType  = 'pdf';
+
+// ── Başlangıç ──────────────────────────────────────────────────────────────
+async function init() {
+  if (!bookId) { window.location.href = '/index.html'; return; }
+
+  const me = await requireAuth();
+  if (!me) return;
+
+  // Kitap bilgisi + okuma konumu paralel çek
+  const [bookRes, progressRes] = await Promise.all([
+    fetch(`/api/books/${bookId}`),
+    fetch(`/api/books/${bookId}/progress`)
+  ]);
+
+  if (!bookRes.ok) {
+    showError('Kitap bulunamadı veya bu kitaba erişim yetkiniz yok.');
+    return;
+  }
+
+  const book     = await bookRes.json();
+  const progress = progressRes.ok ? await progressRes.json() : { currentPage: 1, lastLocation: '' };
+
+  if (!book.hasDigitalCopy) {
+    showError('Bu kitabın dijital kopyası mevcut değil.');
+    return;
+  }
+
+  // Üst bar bilgilerini doldur
+  document.title = `${book.title} — KitapCell`;
+  document.getElementById('readerTitle').textContent = book.title;
+
+  bookFileType = book.fileType || 'pdf';
+  document.getElementById('fileTypeBadge').textContent = bookFileType.toUpperCase();
+
+  // Kaldığım sayfa göstergesi
+  const lastPage = progress.currentPage || 1;
+  const lastDate = progress.lastReadDate || '';
+  if (lastPage > 1 && lastDate) {
+    document.getElementById('saveStatus').textContent =
+      `📌 ${lastDate} — sayfa ${lastPage}`;
+  }
+
+  // Uygun viewer'ı yükle
+  if (bookFileType === 'epub') {
+    loadEpub(lastPage, progress.lastLocation || '');
+  } else {
+    loadPdf(lastPage);
+  }
+}
+
+// ── PDF Viewer (pdfjs) ────────────────────────────────────────────────────
+function loadPdf(startPage) {
+  const frame = document.getElementById('readerFrame');
+  const pdfUrl = encodeURIComponent(`/pdf/${bookId}`);
+
+  // pdfjs#page= ile başlangıç sayfasını belirt
+  frame.src = `/Assets/pdfjs/web/viewer.html?file=${pdfUrl}#page=${startPage}`;
+
+  frame.addEventListener('load', onPdfFrameLoaded, { once: true });
+}
+
+function onPdfFrameLoaded() {
+  hideLoader();
+
+  // pdfjs yüklendikten sonra sayfa takibini başlat
+  // İlk 3 saniye bekle — pdfjs kendi yüklemesini tamamlasın
+  setTimeout(startPdfTracking, 3000);
+}
+
+function startPdfTracking() {
+  // Her 15 saniyede bir mevcut sayfayı oku ve kaydet
+  saveTimer = setInterval(() => {
+    try {
+      const frame = document.getElementById('readerFrame');
+      const pdfApp = frame?.contentWindow?.PDFViewerApplication;
+      if (!pdfApp?.pdfViewer) return;
+
+      const page = pdfApp.pdfViewer.currentPageNumber;
+      if (page && page > 0 && page !== lastSavedPage) {
+        lastSavedPage = page;
+        saveProgress({ page });
+      }
+    } catch (e) {
+      // iframe henüz hazır değil, sessizce atla
+    }
+  }, 15000);
+
+  // Sayfa kapanınca / sekme değişince de kaydet
+  window.addEventListener('beforeunload', () => {
+    try {
+      const frame = document.getElementById('readerFrame');
+      const page  = frame?.contentWindow?.PDFViewerApplication?.pdfViewer?.currentPageNumber;
+      if (page && page > 0) saveProgress({ page });
+    } catch {}
+  });
+}
+
+// ── EPUB Viewer (bibi) ────────────────────────────────────────────────────
+function loadEpub(startPage, lastCfi) {
+  const frame  = document.getElementById('readerFrame');
+  const epubUrl = encodeURIComponent(`/epub/${bookId}`);
+  frame.src = `/Assets/bibi/bibi/index.html?book=${epubUrl}`;
+
+  frame.addEventListener('load', () => {
+    hideLoader();
+
+    // bibi, okuma konumunu localStorage'da kendi yönetebilir
+    window.addEventListener('message', (e) => {
+      if (!e.data) return;
+      const cfi = e.data?.cfi || e.data?.location || e.data?.epubcfi;
+      if (cfi && typeof cfi === 'string' && cfi.startsWith('epubcfi(')) {
+        saveProgress({ cfi });
+      }
+    });
+
+    // Sayfa kapanınca kaydet
+    window.addEventListener('beforeunload', () => {
+      try {
+        const bibi = frame?.contentWindow;
+        const loc  = bibi?.Bibi?.Location?.CFI;
+        if (loc) saveProgress({ cfi: loc });
+      } catch {}
+    });
+  }, { once: true });
+}
+
+// ── İlerleme Kayıt ─────────────────────────────────────────────────────────
+async function saveProgress({ page, cfi } = {}) {
+  if (!page && !cfi) return;
+  const status = document.getElementById('saveStatus');
+
+  try {
+    const body = {};
+    if (page) body.page = page;
+    if (cfi)  body.cfi  = cfi;
+
+    const r = await fetch(`/api/books/${bookId}/progress`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body)
+    });
+
+    if (r.ok) {
+      status.textContent = `✅ Kaydedildi${page ? ` — sayfa ${page}` : ''}`;
+      status.classList.add('saved');
+      setTimeout(() => {
+        status.textContent = '📖 Okunuyor';
+        status.classList.remove('saved');
+      }, 2500);
+    }
+  } catch {}
+}
+
+// ── Yardımcılar ─────────────────────────────────────────────────────────────
+function hideLoader() {
+  const loader = document.getElementById('frameLoader');
+  if (loader) loader.style.display = 'none';
+}
+
+function showError(msg) {
+  document.getElementById('frameLoader').style.display = 'none';
+  document.getElementById('readerFrame').style.display = 'none';
+  const err = document.getElementById('errorScreen');
+  err.style.display = 'flex';
+  document.getElementById('errorMsg').textContent = msg;
+}
+
+// Iframe hata durumu
+document.getElementById('readerFrame').addEventListener('error', () => {
+  showError('Dosya yüklenirken bir sorun oluştu. Lütfen tekrar deneyin.');
+});
+
+init();
+</script>
+</body>
+</html>

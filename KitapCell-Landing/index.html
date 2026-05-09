@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="KitapCell - Yeni nesil akıllı kütüphane ve okuma takip sistemi. Kitaplığınızı dijitalleştirin.">
+    <title>KitapCell | Kütüphanenizi Baştan Yaratın</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Background Elements -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <!-- Navigation -->
+    <nav class="navbar glass-effect">
+        <div class="container nav-container">
+            <div class="logo">
+                <img src="assets/logo.png" alt="KitapCell Logo" class="logo-img">
+                <span class="logo-text">KitapCell</span>
+            </div>
+            <div class="nav-links">
+                <a href="#features">Özellikler</a>
+                <a href="#about">Nasıl Çalışır?</a>
+                <a href="#download" class="btn btn-primary btn-sm">Hemen İndir</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero container">
+        <div class="hero-content" data-animate="fade-up">
+            <div class="badge">v0.1.0-beta Şimdi Yayında ✨</div>
+            <h1 class="hero-title">
+                Kitaplarınızı Yönetmenin <br>
+                <span class="gradient-text">En Şık Yolu</span>
+            </h1>
+            <p class="hero-desc">
+                Yeni nesil akıllı kütüphane sistemi ile okuma alışkanlıklarınızı takip edin, favorilerinizi sıralayın,
+                dahili okuyucu ile PDF ve EPUB kitaplarınızı anında açın.
+            </p>
+            <div class="hero-actions">
+                <a href="#download" class="btn btn-primary btn-lg">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Windows için İndir
+                </a>
+                <a href="https://github.com/yagizerhan/KitapCell" target="_blank" class="btn btn-outline btn-lg">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                    </svg>
+                    Kaynak Kodu
+                </a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat">
+                    <div class="stat-val">100%</div>
+                    <div class="stat-label">Ücretsiz ve Açık Kaynak</div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat">
+                    <div class="stat-val">Sıfır</div>
+                    <div class="stat-label">Ağır Veritabanı Kurulumu</div>
+                </div>
+            </div>
+        </div>
+        <div class="hero-image-wrapper" data-animate="fade-left">
+            <div class="mockup-glow"></div>
+            <img src="assets/mockup.png" alt="KitapCell Uygulama Arayüzü" class="hero-image glass-panel">
+
+            <div class="floating-card card-1 glass-panel">
+                <div class="icon-box icon-purple">📈</div>
+                <div class="card-info">
+                    <strong>İstatistikler</strong>
+                    <span>Detaylı okuma analizi</span>
+                </div>
+            </div>
+
+            <div class="floating-card card-2 glass-panel">
+                <div class="icon-box icon-blue">📖</div>
+                <div class="card-info">
+                    <strong>Gömülü Okuyucu</strong>
+                    <span>PDF & EPUB Desteği</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Features Section -->
+    <section id="features" class="container section">
+        <div class="section-header" data-animate="fade-up">
+            <h2 class="section-title">Kütüphaneniz Artık <span class="gradient-text">Çok Akıllı</span></h2>
+            <p class="section-desc">Eski nesil hantal yazılımları unutun. KitapCell, ihtiyaç duyduğunuz her şeyi tek bir
+                modern arayüzde birleştiriyor.</p>
+        </div>
+
+        <div class="bento-grid">
+            <div class="bento-card bento-large glass-panel" data-animate="fade-up">
+                <div class="bento-icon">🚀</div>
+                <h3>Yerleşik Web Sunucusu</h3>
+                <p>Uygulamayı açtığınız anda arka planda çalışan Kestrel sunucusu sayesinde kütüphanenize ağınızdaki her
+                    cihazdan sadece tarayıcı ile erişebilirsiniz.</p>
+                <div class="bento-visual tech-bg"></div>
+            </div>
+
+            <div class="bento-card glass-panel" data-animate="fade-up" style="transition-delay: 100ms;">
+                <div class="bento-icon">📚</div>
+                <h3>Gelişmiş Ödünç Sistemi</h3>
+                <p>Kitapların kimde olduğunu, teslim tarihlerini takip edin. Zamanında getiren üyeler itibar puanı
+                    kazansın!</p>
+            </div>
+
+            <div class="bento-card glass-panel" data-animate="fade-up" style="transition-delay: 200ms;">
+                <div class="bento-icon">🔍</div>
+                <h3>Hızlı ve Detaylı Arama</h3>
+                <p>ISBN, yazar veya kategori bazında anında filtreleme. Binlerce kitap arasında saniyeler içinde
+                    aradığınızı bulun.</p>
+            </div>
+
+            <div class="bento-card glass-panel" data-animate="fade-up" style="transition-delay: 300ms;">
+                <div class="bento-icon">⭐</div>
+                <h3>Okuyucu Yorumları</h3>
+                <p>Okuduğunuz kitapları puanlayın, yorum yapın ve diğer üyelerin değerlendirmelerini inceleyin.</p>
+            </div>
+
+            <div class="bento-card bento-large glass-panel" data-animate="fade-up" style="transition-delay: 400ms;">
+                <div class="bento-icon">📱</div>
+                <h3>Gömülü Dijital Okuma Deneyimi</h3>
+                <p>WebView2 teknolojisi ile PDF'lerinizi ve EPUB dosyalarınızı uygulama içinden kesintisiz okuyun.
+                    Kaldığınız sayfa otomatik olarak kaydedilir.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download CTA Section -->
+    <section id="download" class="container section">
+        <div class="cta-box glass-panel" data-animate="zoom-in">
+            <div class="cta-glow"></div>
+            <h2>Sınırları Kaldırın, Okumaya Başlayın</h2>
+            <p>KitapCell'i hemen ücretsiz indirin ve bilgisayarınızı tam donanımlı bir dijital kütüphaneye dönüştürün.
+            </p>
+
+            <div class="download-container">
+                <a href="#" class="btn btn-primary btn-lg download-btn" id="mainDownloadBtn">
+                    <span class="btn-icon">⬇️</span>
+                    <div class="btn-text">
+                        <strong>KitapCell Setup İndir</strong>
+                        <span>v0.1.0-beta - Windows (64-bit)</span>
+                    </div>
+                </a>
+                <div class="download-info">
+                    <span class="info-item">📦 Boyut: ~110 MB</span>
+                    <span class="info-item">✅ Güvenli ve Temiz</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container footer-content">
+            <div class="footer-logo">
+                <img src="assets/logo.png" alt="Logo">
+                <span>KitapCell</span>
+            </div>
+            <div class="footer-links">
+                <a href="#">Gizlilik</a>
+                <a href="#">Kullanım Şartları</a>
+                <a href="https://github.com/yagizerhan/KitapCell" target="_blank">Kaynak Kod</a>
+            </div>
+            <div class="footer-copy">
+                &copy; 2026 Yağız Erhan. Tüm hakları saklıdır.
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

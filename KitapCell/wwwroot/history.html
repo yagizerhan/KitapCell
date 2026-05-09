@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Son Okuduklarım — KitapCell</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    .history-list { display: flex; flex-direction: column; gap: 14px; }
+    .history-item {
+      display: flex; align-items: center; gap: 18px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 20px;
+      transition: border-color .2s, transform .15s;
+      text-decoration: none; color: inherit;
+    }
+    .history-item:hover { border-color: var(--accent); transform: translateX(4px); }
+    .history-cover {
+      width: 52px; height: 70px; border-radius: 8px; flex-shrink: 0;
+      background: var(--bg-hover); display: flex; align-items: center;
+      justify-content: center; font-size: 1.8rem; overflow: hidden;
+    }
+    .history-cover img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+    .history-main { flex: 1; min-width: 0; }
+    .history-title { font-weight: 700; color: #fff; font-size: 1rem; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-author { color: var(--muted); font-size: .85rem; margin-bottom: 8px; }
+    .history-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .history-right { text-align: right; flex-shrink: 0; }
+    .history-date { font-size: .8rem; color: var(--muted); }
+    .history-page { font-size: .85rem; font-weight: 600; color: var(--accent); margin-top: 4px; }
+    .progress-bar-wrap { width: 120px; height: 4px; background: var(--border); border-radius: 4px; margin-top: 6px; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width .3s; }
+  </style>
+</head>
+<body>
+<nav class="navbar" id="navbar"></nav>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="content">
+    <div style="max-width:900px;margin:0 auto;padding-top:4px;">
+      <div class="page-header" style="margin-bottom:22px;">
+        <span class="page-title">🕒 Son Okuduklarım</span>
+        <a href="/index.html" class="btn btn-outline btn-sm">← Kataloğa Dön</a>
+      </div>
+
+      <div id="container">
+        <div class="loader"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="app.js?v=2"></script>
+<script>
+async function init() {
+  const user = await requireAuth();
+  if (!user) return;
+  buildNavbar(user);
+  buildSidebar();
+
+  const r = await fetch('/api/me/history');
+  const el = document.getElementById('container');
+
+  if (!r.ok) {
+    el.innerHTML = '<div class="empty"><div class="icon">⚠️</div><p>Geçmiş yüklenemedi.</p></div>';
+    return;
+  }
+
+  const items = await r.json();
+
+  if (!items.length) {
+    el.innerHTML = `<div class="empty">
+      <div class="icon">📖</div>
+      <p>Henüz hiç kitap okumadınız.</p>
+      <a href="/index.html" class="btn btn-primary" style="margin-top:16px;display:inline-flex;">Kitaplığa Göz At</a>
+    </div>`;
+    return;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'history-list fade-in';
+
+  items.forEach(item => {
+    const a = document.createElement('a');
+    a.className = 'history-item';
+    a.href = item.hasDigitalCopy ? `/reader.html?id=${item.bookId}` : `/book.html?id=${item.bookId}`;
+
+    const coverHtml = item.hasCover
+      ? `<img src="/cover/${item.bookId}" alt="${escapeHtml(item.title)}" loading="lazy">`
+      : '📘';
+
+    const pageHtml = item.currentPage > 1
+      ? `<div class="history-page">📄 ${item.currentPage}. sayfada</div>`
+      : '';
+
+    const continueBadge = item.hasDigitalCopy
+      ? `<span class="badge badge-cyan" style="font-size:.72rem;">▶ Okumaya Devam Et</span>`
+      : `<span class="badge badge-muted" style="font-size:.72rem;">📖 Detay</span>`;
+
+    a.innerHTML = `
+      <div class="history-cover">${coverHtml}</div>
+      <div class="history-main">
+        <div class="history-title">${escapeHtml(item.title)}</div>
+        <div class="history-author">${escapeHtml(item.author)}</div>
+        <div class="history-meta">${continueBadge}</div>
+      </div>
+      <div class="history-right">
+        <div class="history-date">🕒 ${escapeHtml(item.lastReadDate)}</div>
+        ${pageHtml}
+      </div>`;
+    list.appendChild(a);
+  });
+
+  el.innerHTML = '';
+  el.appendChild(list);
+}
+
+init();
+</script>
+</body>
+</html>

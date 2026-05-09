@@ -1,0 +1,133 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>En Çok Okunanlar — KitapCell</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    .top-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+    }
+    .top-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+      text-decoration: none; color: inherit;
+      transition: border-color .2s, transform .2s, box-shadow .2s;
+      position: relative;
+    }
+    .top-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,.4); }
+    .top-rank {
+      position: absolute; top: 10px; left: 10px; z-index: 1;
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: .85rem;
+      box-shadow: 0 2px 8px rgba(99,102,241,.5);
+    }
+    .top-rank.gold   { background: linear-gradient(135deg,#f59e0b,#d97706); }
+    .top-rank.silver { background: linear-gradient(135deg,#94a3b8,#64748b); }
+    .top-rank.bronze { background: linear-gradient(135deg,#c2854b,#92400e); }
+    .top-cover {
+      width: 100%; height: 160px; background: var(--bg-hover);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 3.5rem; overflow: hidden;
+    }
+    .top-cover img { width: 100%; height: 100%; object-fit: cover; }
+    .top-info { padding: 14px 16px; }
+    .top-title { font-weight: 700; color: #fff; font-size: .95rem; margin-bottom: 4px; line-height: 1.3; }
+    .top-author { color: var(--muted); font-size: .8rem; margin-bottom: 10px; }
+    .top-footer { display: flex; align-items: center; justify-content: space-between; }
+    .read-count { font-size: .8rem; color: var(--accent); font-weight: 600; }
+    .stars-small { font-size: .8rem; color: var(--warning); }
+  </style>
+</head>
+<body>
+<nav class="navbar" id="navbar"></nav>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="content">
+    <div style="max-width:1100px;margin:0 auto;padding-top:4px;">
+      <div class="page-header" style="margin-bottom:22px;">
+        <span class="page-title">🔥 En Çok Okunanlar</span>
+        <a href="/index.html" class="btn btn-outline btn-sm">← Kataloğa Dön</a>
+      </div>
+
+      <div id="container">
+        <div class="loader"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="app.js?v=2"></script>
+<script>
+async function init() {
+  const user = await getUser();
+  // guest allowed — user may be null
+  buildNavbar(user);
+  buildSidebar(user);
+
+  const r = await fetch('/api/books/top-read');
+  const el = document.getElementById('container');
+
+  if (!r.ok) {
+    el.innerHTML = '<div class="empty"><div class="icon">⚠️</div><p>Veriler yüklenemedi.</p></div>';
+    return;
+  }
+
+  const books = await r.json();
+
+  if (!books.length) {
+    el.innerHTML = `<div class="empty">
+      <div class="icon">📊</div>
+      <p>Henüz okuma verisi bulunmuyor.</p>
+      <a href="/index.html" class="btn btn-primary" style="margin-top:16px;display:inline-flex;">Kitaplığa Göz At</a>
+    </div>`;
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'top-grid fade-in';
+
+  books.forEach((b, index) => {
+    const rank = index + 1;
+    const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+
+    const coverHtml = b.hasCover
+      ? `<img src="/cover/${b.id}" alt="${escapeHtml(b.title)}" loading="lazy">`
+      : '📘';
+
+    const stars = b.averageRating > 0
+      ? `<span class="stars-small">⭐ ${b.averageRating.toFixed(1)}</span>`
+      : `<span class="stars-small" style="color:var(--muted)">☆ —</span>`;
+
+    const card = document.createElement('a');
+    card.className = 'top-card';
+    card.href = `/book.html?id=${b.id}`;
+    card.innerHTML = `
+      <div class="top-rank ${rankClass}">${rank}</div>
+      <div class="top-cover">${coverHtml}</div>
+      <div class="top-info">
+        <div class="top-title">${escapeHtml(b.title)}</div>
+        <div class="top-author">${escapeHtml(b.author)}</div>
+        <div class="top-footer">
+          <span class="read-count">🔥 ${b.readCount} kez okundu</span>
+          ${stars}
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  el.innerHTML = '';
+  el.appendChild(grid);
+}
+
+init();
+</script>
+</body>
+</html>

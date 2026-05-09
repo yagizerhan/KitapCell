@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Giriş Yap — KitapCell</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    body { background: radial-gradient(ellipse at top, rgba(99,102,241,.1) 0%, var(--bg) 60%); }
+  </style>
+</head>
+<body>
+<div class="form-wrapper">
+  <div class="form-card fade-in">
+    <div class="form-logo">
+      <div class="icon">📚</div>
+      <h1>KitapCell</h1>
+      <p>Kütüphane yönetim sistemine giriş yapın</p>
+    </div>
+
+    <div class="form-error" id="errBox"></div>
+
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="email">E-posta Adresi</label>
+        <input type="email" id="email" name="email" placeholder="ornek@eposta.com" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label for="password">Şifre</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="submitBtn">
+        Giriş Yap
+      </button>
+    </form>
+
+    <div class="form-footer">
+      Hesabın yok mu? <a href="/register.html">Kayıt Ol</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Zaten giriş yapılmışsa ana sayfaya yönlendir
+  fetch('/api/auth/me').then(r => { if (r.ok) window.location.href = '/index.html'; });
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn  = document.getElementById('submitBtn');
+    const errBox = document.getElementById('errBox');
+    errBox.classList.remove('show');
+    btn.disabled = true;
+    btn.textContent = 'Giriş yapılıyor...';
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email:    document.getElementById('email').value.trim(),
+          password: document.getElementById('password').value
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        window.location.href = '/index.html';
+      } else {
+        errBox.textContent = data.error ?? 'Giriş başarısız.';
+        errBox.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = 'Giriş Yap';
+      }
+    } catch {
+      errBox.textContent = 'Sunucuya bağlanılamadı.';
+      errBox.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'Giriş Yap';
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesleki Proje - Kütüphane Yönetimi</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-book-open"></i>
+                    <span>LibraryPro</span>
+                </div>
+                <div class="account-info">
+                    <div class="auth-buttons" id="auth-buttons">
+                        <button class="btn btn-sm btn-outline" id="login-btn">Giriş Yap</button>
+                        <button class="btn btn-sm btn-primary" id="register-btn">Kayıt Ol</button>
+                    </div>
+                    <div class="user-profile hidden" id="user-profile">
+                        <div class="avatar"><i class="fas fa-user-circle"></i></div>
+                        <div class="user-details">
+                            <span class="user-name" id="display-user-name">Giriş Yapılmadı</span>
+                            <span class="user-role" id="display-user-role"></span>
+                        </div>
+                        <button class="btn-icon" id="logout-btn" title="Çıkış Yap"><i class="fas fa-sign-out-alt"></i></button>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section hidden" id="admin-nav-section">
+                    <p class="section-title">YÖNETİM</p>
+                    <a href="#" class="nav-item" id="nav-members"><i class="fas fa-users"></i> Üyeler</a>
+                </div>
+                <div class="nav-section">
+                    <p class="section-title">KÜTÜPHANE</p>
+                    <a href="#" class="nav-item active"><i class="fas fa-layer-group"></i> Tüm Kitaplar</a>
+                    <a href="#" class="nav-item"><i class="fas fa-star"></i> Favoriler</a>
+                    <a href="#" class="nav-item"><i class="fas fa-clock"></i> Son Okunanlar</a>
+                </div>
+                <div class="nav-section">
+                    <p class="section-title">FİLTRELER</p>
+                    <a href="#" class="nav-item" data-filter="authors"><i class="fas fa-user-edit"></i> Yazarlar</a>
+                    <a href="#" class="nav-item" data-filter="categories"><i class="fas fa-bookmark"></i> Kategoriler</a>
+                    <a href="#" class="nav-item" data-filter="available"><i class="fas fa-check-circle"></i> Müsait Kitaplar</a>
+                    <a href="#" class="nav-item" data-filter="loaned"><i class="fas fa-hand-holding-heart"></i> Ödünç Verilenler</a>
+                    <a href="#" class="nav-item" data-filter="overdue"><i class="fas fa-exclamation-triangle"></i> Gecikmiş İadeler</a>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="#" class="nav-item"><i class="fas fa-cog"></i> Ayarlar</a>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Kitap, yazar veya etiket ara...">
+                </div>
+                <div class="actions-bar">
+                    <button class="btn btn-primary" id="add-book-btn"><i class="fas fa-plus"></i> Kitap Ekle</button>
+                    <button class="btn btn-secondary"><i class="fas fa-sync-alt"></i></button>
+                    <button class="btn btn-secondary view-toggle" data-view="grid"><i class="fas fa-th-large"></i></button>
+                    <button class="btn btn-secondary view-toggle active" data-view="list"><i class="fas fa-list"></i></button>
+                </div>
+            </header>
+
+            <section class="content-body">
+                <!-- Library View -->
+                <div class="view-container list-view-active" id="library-view">
+                    <div class="table-container">
+                        <table class="book-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-title">Başlık</th>
+                                    <th class="col-author">Yazar</th>
+                                    <th class="col-category">Kategori</th>
+                                    <th class="col-publisher">Yayıncı</th>
+                                    <th class="col-year">Yıl</th>
+                                    <th class="col-copies">Kopya</th>
+                                    <th class="col-status">Durum</th>
+                                </tr>
+                            </thead>
+                            <tbody id="book-list-body">
+                                <tr class="book-row" data-id="1">
+                                    <td><div class="title-cell"><i class="fas fa-book book-icon"></i> <span>Sefiller</span></div></td>
+                                    <td>Victor Hugo</td>
+                                    <td><span class="tag">Klasik</span></td>
+                                    <td>İş Bankası</td>
+                                    <td>1862</td>
+                                    <td><span class="copies-badge available">3 / 5</span></td>
+                                    <td><span class="status-badge available">Müsait</span></td>
+                                </tr>
+                                <tr class="book-row" data-id="2">
+                                    <td><div class="title-cell"><i class="fas fa-book book-icon"></i> <span>Dune</span></div></td>
+                                    <td>Frank Herbert</td>
+                                    <td><span class="tag">Bilim Kurgu</span></td>
+                                    <td>Penguin</td>
+                                    <td>1965</td>
+                                    <td><span class="copies-badge loaned">0 / 3</span></td>
+                                    <td><span class="status-badge loaned">Ödünçte</span></td>
+                                </tr>
+                                <tr class="book-row" data-id="3">
+                                    <td><div class="title-cell"><i class="fas fa-book book-icon"></i> <span>1984</span></div></td>
+                                    <td>George Orwell</td>
+                                    <td><span class="tag">Distopya</span></td>
+                                    <td>Secker & Warburg</td>
+                                    <td>1949</td>
+                                    <td><span class="copies-badge available">2 / 4</span></td>
+                                    <td><span class="status-badge overdue">Gecikmiş</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="grid-container" id="book-grid">
+                        <div class="book-card" data-id="1">
+                            <div class="card-cover"><i class="fas fa-book fa-3x"></i></div>
+                            <div class="card-info">
+                                <span class="card-title">Sefiller</span>
+                                <span class="card-author">Victor Hugo</span>
+                            </div>
+                        </div>
+                        <div class="book-card" data-id="2">
+                            <div class="card-cover"><i class="fas fa-book fa-3x"></i></div>
+                            <div class="card-info">
+                                <span class="card-title">Dune</span>
+                                <span class="card-author">Frank Herbert</span>
+                            </div>
+                        </div>
+                        <div class="book-card" data-id="3">
+                            <div class="card-cover"><i class="fas fa-book fa-3x"></i></div>
+                            <div class="card-info">
+                                <span class="card-title">1984</span>
+                                <span class="card-author">George Orwell</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Members View -->
+                <div class="view-container hidden" id="members-view">
+                    <div class="table-container">
+                        <table class="book-table">
+                            <thead>
+                                <tr>
+                                    <th>Kullanıcı Adı</th>
+                                    <th>Rol</th>
+                                    <th>Kayıt Tarihi</th>
+                                    <th>Durum</th>
+                                </tr>
+                            </thead>
+                            <tbody id="members-list-body">
+                                <!-- Members populated by script -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Right Detail Panel -->
+        <aside class="detail-panel">
+            <div class="detail-header">
+                <h3>Kitap Detayları</h3>
+                <button class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="detail-body">
+                <div class="book-cover-large">
+                    <div class="placeholder-cover">
+                        <i class="fas fa-book fa-4x"></i>
+                    </div>
+                </div>
+                <h2 class="book-title">Sefiller</h2>
+                <p class="book-author">Victor Hugo</p>
+                <div class="book-meta">
+                    <div class="meta-item"><span>ISBN:</span> <strong>978-975-458-000-1</strong></div>
+                    <div class="meta-item"><span>Kategori:</span> <strong>Klasik</strong></div>
+                    <div class="meta-item"><span>Yayıncı:</span> <strong>İş Bankası</strong></div>
+                    <div class="meta-item"><span>Yayın Yılı:</span> <strong>1862</strong></div>
+                    <div class="meta-item"><span>Toplam Kopya:</span> <strong>5</strong></div>
+                    <div class="meta-item"><span>Rafta Mevcut:</span> <strong>3</strong></div>
+                </div>
+                <div class="book-description">
+                    <p>Jean Valjean'ın kürek mahkumiyetinden kaçışını ve hayatını yeniden kurma çabasını anlatan dünya klasiği.</p>
+                </div>
+                <div class="detail-actions">
+                    <button class="btn btn-large btn-primary"><i class="fas fa-hand-holding-heart"></i> Ödünç Ver</button>
+                    <button class="btn btn-large btn-outline" id="edit-metadata-btn"><i class="fas fa-edit"></i> Düzenle</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Modals -->
+        <div class="modal-overlay" id="add-book-modal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>Yeni Kitap Ekle</h3>
+                    <button class="modal-close"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Dosya Seç</label>
+                        <div class="file-upload">
+                            <i class="fas fa-cloud-upload-alt fa-2x"></i>
+                            <span>Dosyayı sürükleyin veya seçin</span>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Başlık</label>
+                            <input type="text" placeholder="Kitap Başlığı">
+                        </div>
+                        <div class="form-group">
+                            <label>Yazar</label>
+                            <input type="text" placeholder="Yazar Adı">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary modal-cancel">İptal</button>
+                    <button class="btn btn-primary">Ekle</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

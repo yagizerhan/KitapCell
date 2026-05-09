@@ -1,0 +1,33 @@
+# .NET build outputs
+bin/
+obj/
+publish/
+
+# Visual Studio temporary files
+.vs/
+*.user
+*.suo
+
+# SQLite database files (created automatically on first run via EF Migrations)
+*.db
+*.db-shm
+*.db-wal
+
+# User-uploaded profile images (generated at runtime)
+ProfileImages/
+
+# Application settings (generated at runtime)
+settings.json
+
+# Installer output
+Output/
+
+# NuGet package cache (restored via dotnet restore)
+packages/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
