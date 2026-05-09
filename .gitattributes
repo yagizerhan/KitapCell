@@ -1,0 +1,14 @@
+# Tell GitHub Linguist to ignore vendored/generated files for language stats
+
+# PDF.js — vendored JavaScript library
+KitapCell/Assets/pdfjs/** linguist-vendored
+
+# Bibi EPUB reader — vendored library
+KitapCell/Assets/bibi/** linguist-vendored
+KitapCell/wwwroot/bibi/** linguist-vendored
+
+# Web UI (generated/static assets, not the main language)
+KitapCell/wwwroot/** linguist-documentation
+
+# Landing page (static HTML, not the main project)
+KitapCell-Landing/** linguist-documentation
