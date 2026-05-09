@@ -9,10 +9,6 @@
 *.xls
 *.pptx
 
-# Markdown notes & reports (local use only)
-Vize_Raporu_Metinleri.md
-calibre_ozellik_listesi.md
-vize_raporu_*.docx
 
 # Derlenmiş installer (çok büyük - 75MB+)
 *.exe
