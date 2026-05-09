@@ -58,6 +58,5 @@ desktop.ini
 packages/
 *.nupkg
 
-# Geçici proje notları (isteğe bağlı — silmek istemiyorsanız başına # ekleyin)
-# Vize_Raporu_Metinleri.md
-# calibre_ozellik_listesi.md
+# Prototype (old experiments)
+prototype/

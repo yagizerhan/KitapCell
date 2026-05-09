@@ -1,10 +1,13 @@
-# 📚 KitapCell — Library Management System
+# KitapCell — Library Management System
+> **⚠️ Note:** This is a capstone project completed as a mandatory graduation requirement for an associate degree program at a Turkish university. Most of the code was written with AI assistance. You'll find Turkish and English comments mixed throughout, inconsistent structure, and shortcuts that made sense only because the deadline was the only real priority. There is no greater purpose behind this project — it was made to graduate, and it did.
+
+---
 
 A full-featured desktop library management system built with **C# and .NET 9**, featuring a built-in web server for browser-based access, PDF/EPUB reading, and comprehensive user management.
 
 ---
 
-## ✨ Features
+##  Features
 
 - **Book Catalog** — Add, edit, delete, and search books with automatic cover generation
 - **PDF & EPUB Reader** — Integrated document reader with progress tracking and persistent reading positions
@@ -34,7 +37,7 @@ A full-featured desktop library management system built with **C# and .NET 9**, 
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
