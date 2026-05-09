@@ -41,8 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Simulate file preparation
             setTimeout(() => {
-                // Here we will put the actual setup.exe link later.
-                // window.location.href = "KitapCell_Setup_0.1.0-beta.exe";
+                // Start the actual download
+                window.location.href = downloadBtn.href;
                 
                 downloadBtn.innerHTML = `
                     <span class="btn-icon">✅</span>
