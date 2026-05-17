@@ -13,7 +13,6 @@ namespace KitapCell.Data
         public DbSet<UserRating> UserRatings { get; set; } = null!;
         public DbSet<UserFavorite> UserFavorites { get; set; } = null!;
         public DbSet<ReadingHistory> ReadingHistories { get; set; } = null!;
-        public DbSet<Notification> Notifications { get; set; } = null!;
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -96,12 +95,6 @@ namespace KitapCell.Data
                 .HasForeignKey(rh => rh.BookId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Notification>()
-                .HasOne(n => n.User)
-                .WithMany(u => u.Notifications)
-                .HasForeignKey(n => n.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-
             // ── Unique Constraints ───────────────────────────────────────────────
 
             modelBuilder.Entity<User>()
@@ -130,7 +123,6 @@ namespace KitapCell.Data
                 CanEditBook = true,
                 CanDeleteBook = true,
                 ReputationScore = 0,
-                TotalPenalty = 0m,
                 RegistrationDate = new DateTime(2024, 1, 1)
             });
 

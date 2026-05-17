@@ -199,90 +199,67 @@ namespace KitapCell
             ClearContent("👥 Yetkiler ve Roller");
 
             var pnlMain = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 20, 0, 0) };
-            
-            var lblSelect = new Label { Text = "Kullanıcı Seçin:", AutoSize = true, Font = new Font("Segoe UI", 11F), Location = new Point(0, 0) };
-            var cmbUsers = new ComboBox { 
-                Location = new Point(0, 30), 
-                Width = 400,
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 11F),
-                BackColor = Color.FromArgb(22, 27, 34),
-                ForeColor = Color.White
+
+            var lblInfo = new Label
+            {
+                Text = "Sistemdeki tüm üyeler ve rolleri aşağıda listelenmektedir.\nRol değiştirmek için ilgili kullanıcıyı seçin ve yeni rolünü atayın.",
+                AutoSize = true, Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(139, 148, 158),
+                Location = new Point(0, 0)
             };
 
-            var chkAdd = new CheckBox { Text = "Kitap Ekleme Yetkisi (Can Add Book)", AutoSize = true, Location = new Point(0, 80), Font = new Font("Segoe UI", 11F), Visible = false };
-            var chkEdit = new CheckBox { Text = "Kitap Düzenleme Yetkisi (Can Edit Book)", AutoSize = true, Location = new Point(0, 115), Font = new Font("Segoe UI", 11F), Visible = false };
-            var chkDelete = new CheckBox { Text = "Kitap Silme Yetkisi (Can Delete Book)", AutoSize = true, Location = new Point(0, 150), Font = new Font("Segoe UI", 11F), Visible = false };
-
-            var btnSave = new Button {
-                Text = "Yetkileri Güncelle",
-                Location = new Point(0, 210),
-                Size = new Size(180, 40),
-                BackColor = Color.FromArgb(34, 197, 94),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
-                Cursor = Cursors.Hand,
-                Visible = false
+            var dgv = new DataGridView
+            {
+                Location = new Point(0, 50),
+                Width = 700, Height = 350,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                BackgroundColor = Color.FromArgb(22, 27, 34),
+                GridColor = Color.FromArgb(48, 54, 61),
+                BorderStyle = BorderStyle.None,
+                RowHeadersVisible = false,
+                EnableHeadersVisualStyles = false
             };
-            btnSave.FlatAppearance.BorderSize = 0;
+            dgv.DefaultCellStyle.BackColor = Color.FromArgb(22, 27, 34);
+            dgv.DefaultCellStyle.ForeColor = Color.FromArgb(201, 209, 217);
+            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(33, 38, 45);
+            dgv.DefaultCellStyle.SelectionForeColor = Color.White;
+            dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(33, 38, 45);
+            dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(139, 148, 158);
+            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dgv.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
+            dgv.ColumnHeadersHeight = 36;
+            dgv.RowTemplate.Height = 34;
 
-            pnlMain.Controls.AddRange(new Control[] { lblSelect, cmbUsers, chkAdd, chkEdit, chkDelete, btnSave });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Id",    HeaderText = "ID",       Width = 50 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Name",  HeaderText = "Ad Soyad" });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Email", HeaderText = "E-posta" });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Role",  HeaderText = "Rol" });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Active",HeaderText = "Aktif" });
+
+            pnlMain.Controls.AddRange(new Control[] { lblInfo, dgv });
             _pnlContent.Controls.Add(pnlMain);
             pnlMain.BringToFront();
 
-            // Kullanıcı listesini yükle
-            List<User> nonAdmins;
-            using (var db = new LibraryDbContext())
+            try
             {
+                using var db = new LibraryDbContext();
                 var userRepo = new UserRepository(db);
                 var users = await userRepo.GetAllAsync();
-                nonAdmins = users.Where(u => u.Role != UserRole.Admin).ToList();
+                foreach (var u in users)
+                {
+                    dgv.Rows.Add(u.Id, $"{u.FirstName} {u.LastName}".Trim(), u.Email,
+                        u.Role == UserRole.Admin ? "🔑 Admin" : "👤 Üye",
+                        u.IsActive ? "✅" : "❌");
+                }
             }
-
-            cmbUsers.DataSource = nonAdmins;
-            cmbUsers.DisplayMember = "Email";
-            cmbUsers.ValueMember = "Id";
-
-            User selectedUser = null;
-
-            cmbUsers.SelectedIndexChanged += async (s, e) => {
-                if (cmbUsers.SelectedItem is User u) {
-                    try {
-                        // Her seçimde yeni context aç — disposed context hatası olmaz
-                        using var db2 = new LibraryDbContext();
-                        var userRepo2 = new UserRepository(db2);
-                        selectedUser = await userRepo2.GetByIdAsync(u.Id);
-                        if (selectedUser != null) {
-                            chkAdd.Checked = selectedUser.CanAddBook;
-                            chkEdit.Checked = selectedUser.CanEditBook;
-                            chkDelete.Checked = selectedUser.CanDeleteBook;
-                            chkAdd.Visible = chkEdit.Visible = chkDelete.Visible = btnSave.Visible = true;
-                        }
-                    } catch (Exception ex) {
-                        MessageBox.Show("Kullanıcı yüklenirken hata: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-            };
-
-            // İlk tetikleme
-            if (cmbUsers.Items.Count > 0) cmbUsers.SelectedIndex = 0;
-
-            btnSave.Click += async (s, e) => {
-                if (selectedUser == null) return;
-                selectedUser.CanAddBook = chkAdd.Checked;
-                selectedUser.CanEditBook = chkEdit.Checked;
-                selectedUser.CanDeleteBook = chkDelete.Checked;
-
-                try {
-                    using var context = new LibraryDbContext();
-                    context.Users.Update(selectedUser);
-                    await context.SaveChangesAsync();
-                    MessageBox.Show($"{selectedUser.FirstName} yetkileri güncellendi.", "Başarılı", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                } catch (Exception ex) {
-                    MessageBox.Show("Yetki kaydedilirken hata: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            };
+            catch (Exception ex)
+            {
+                MessageBox.Show("Kullanıcılar yüklenirken hata: " + ex.Message, "Hata",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void ShowTab_Veritabani()
