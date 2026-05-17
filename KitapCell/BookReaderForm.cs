@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -114,7 +114,16 @@ namespace KitapCell
         {
             try
             {
-                await webView.EnsureCoreWebView2Async(null);
+                // Windows 10 uyumluluğu: explicit kullanıcı veri klasörü belirt
+                // null kullanmak bazen Win10'da kilit sorunlarına yol açıyor
+                string webViewDataDir = System.IO.Path.Combine(
+                    System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData),
+                    "KitapCell", "WebView2Cache");
+                System.IO.Directory.CreateDirectory(webViewDataDir);
+
+                var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(
+                    null, webViewDataDir);
+                await webView.EnsureCoreWebView2Async(env);
 
                 // Yerel dosyalar (Assets vb.) için Sanal HTTP Sunucu
                 webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
@@ -133,10 +142,33 @@ namespace KitapCell
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    "WebView2 başlatılamadı.\n\nHata: " + ex.Message +
-                    "\n\nMicrosoft Edge WebView2 Runtime yüklü olduğundan emin olun:\nhttps://developer.microsoft.com/microsoft-edge/webview2",
-                    "Okuyucu Hatası", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // WebView2 başlatılamadıysa PDF için sistem okuyucusuna fallback yap
+                string ext = System.IO.Path.GetExtension(_book.PdfFilePath ?? "").ToLower();
+                if (ext == ".pdf")
+                {
+                    var result = MessageBox.Show(
+                        "Dahili PDF okuyucu başlatılamadı (WebView2 sorunu).\n\n" +
+                        "Hata: " + ex.Message +
+                        "\n\nPDF sisteminizin varsayılan okuyucusunda açılsın mı?",
+                        "Okuyucu Hatası", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    if (result == DialogResult.Yes)
+                    {
+                        try
+                        {
+                            System.Diagnostics.Process.Start(
+                                new System.Diagnostics.ProcessStartInfo(_book.PdfFilePath) { UseShellExecute = true });
+                        }
+                        catch { }
+                    }
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "Dahili okuyucu başlatılamadı.\n\nHata: " + ex.Message +
+                        "\n\nMicrosoft Edge WebView2 Runtime yüklü olduğundan emin olun:\nhttps://developer.microsoft.com/microsoft-edge/webview2\n\n" +
+                        "Kurulum için: winget install Microsoft.EdgeWebView2Runtime",
+                        "Okuyucu Hatası", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
                 this.Close();
             }
         }

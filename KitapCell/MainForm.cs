@@ -137,7 +137,7 @@ namespace KitapCell
             btnToolOduncVer.Click += (s, e) => LoanSelectedBook();
             btnToolIadeAl.Click += (s, e) => ReturnSelectedBook();
             btnToolRapor.Click += (s, e) => ShowReports();
-            btnNavTumKitaplar.Click += (s, e) =>
+            btnNavTumKitaplar.Click += async (s, e) =>
             {
                 SetActiveNavButton(btnNavTumKitaplar);
                 lblPageTitle.Text = "Tüm Kitaplar";
@@ -149,17 +149,21 @@ namespace KitapCell
                 foreach (Control ctrl in pnlFilterRoot.Controls)
                     foreach (Control c in ctrl.Controls)
                         if (c is CheckBox chk) chk.Checked = false;
-                ApplyFilters();
+                // Veritabanından taze veri çek
+                await LoadBooksFromDatabaseAsync();
             };
             btnNavFavoriler.Click    += async (s, e) => { SetActiveNavButton(btnNavFavoriler);    lblPageTitle.Text = "Favoriler";     HideMembersView(); await ShowFavoritesAsync(); };
             btnNavSonOkunanlar.Click += async (s, e) => { SetActiveNavButton(btnNavSonOkunanlar); lblPageTitle.Text = "Son Okunanlar"; _activeSection = "sonokunanlar"; HideMembersView(); await ShowRecentlyReadAsync(); };
             btnNavEnCokOkunanlar.Click += async (s, e) => { SetActiveNavButton(btnNavEnCokOkunanlar); lblPageTitle.Text = "Çok Okunanlar"; _activeSection = "encokokunanlar"; HideMembersView(); await ShowMostReadBooksAsync(); };
             btnNavUyeler.Click    += async (s, e) => { SetActiveNavButton(btnNavUyeler);    lblPageTitle.Text = "Üye Listesi";     await ShowMembersAsync(); };
             btnNavOduncler.Click  += async (s, e) => { SetActiveNavButton(btnNavOduncler);  lblPageTitle.Text = "Ödünç İşlemleri"; await ShowLoansAsync(); };
-            btnToolAyarlar.Click += (s, e) =>
+            btnToolAyarlar.Click += async (s, e) =>
             {
                 var SettingsForm = new SettingsForm();
                 SettingsForm.ShowDialog(this);
+                // Ayarlar kapandıktan sonra listeyi yenile (toplu ekleme vb. yapıldıysa)
+                await LoadBooksFromDatabaseAsync();
+                await PopulateGridBooksAsync();
             };
             btnToolSunucu.Click += async (s, e) =>
             {
@@ -249,7 +253,7 @@ namespace KitapCell
                 if (_selectedBook != null && _selectedBook.HasDigitalCopy) {
                     OpenBookDigital(_selectedBook);
                 } else {
-                    MessageBox.Show("Bu kitabın dijital kopyası (PDF) bulunmamaktadır.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("Bu kitabın dijital kopyası (PDF/EPUB) bulunmamaktadır.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             });
             var mnuGoruntule = new ToolStripMenuItem("👁️ Görüntüle", null, (s, e) => ViewSelectedBook());
@@ -970,7 +974,13 @@ namespace KitapCell
             dgvBooks.Rows.Clear();
             foreach (var book in books)
             {
-                string status = book.HasDigitalCopy ? "📄 PDF" : (book.AvailableCopies > 0 ? "✅ Müsait" : "📤 Ödünçte");
+                string digitalLabel2 = "📄 Dijital";
+                if (book.HasDigitalCopy && !string.IsNullOrEmpty(book.PdfFilePath))
+                {
+                    string ext2 = System.IO.Path.GetExtension(book.PdfFilePath).ToLower();
+                    digitalLabel2 = ext2 == ".epub" ? "📄 EPUB" : "📄 PDF";
+                }
+                string status = book.HasDigitalCopy ? digitalLabel2 : (book.AvailableCopies > 0 ? "✅ Müsait" : "📤 Ödünçte");
                 int rowIdx = dgvBooks.Rows.Add(book.Title, book.Author?.FullName ?? "Bilinmiyor",
                     book.Category?.Name ?? "-", book.Publisher ?? "-",
                     book.AverageRating > 0 ? $"{book.AverageRating} / 5" : "-", status);
@@ -1064,8 +1074,14 @@ namespace KitapCell
 
             foreach (var book in books)
             {
+                string digitalLabel = "📄 Dijital";
+                if (book.HasDigitalCopy && !string.IsNullOrEmpty(book.PdfFilePath))
+                {
+                    string ext = System.IO.Path.GetExtension(book.PdfFilePath).ToLower();
+                    digitalLabel = ext == ".epub" ? "📄 EPUB" : "📄 PDF";
+                }
                 string status = book.HasDigitalCopy
-                    ? "📄 PDF"
+                    ? digitalLabel
                     : (book.AvailableCopies > 0 ? "✅ Müsait" : "📤 Ödünçte");
                 string authorName = book.Author?.FullName ?? "Bilinmiyor";
                 string categoryName = book.Category?.Name ?? "Belirtilmemiş";
@@ -1154,13 +1170,19 @@ namespace KitapCell
             lblDetailAuthor.Text = "Yazar: " + (book.Author?.FullName ?? "Bilinmiyor");
             
             string status = book.AvailableCopies > 0 ? $"✅ Müsait ({book.AvailableCopies})" : "📤 Ödünçte";
-            string pdfStatus = book.HasDigitalCopy ? "Var" : "Yok";
             string categoryName = book.Category?.Name ?? "-";
             string publishYear = book.PublishYear?.ToString() ?? "-";
             string publisherName = book.Publisher ?? "-";
             string isbn = string.IsNullOrEmpty(book.ISBN) ? "Yok" : book.ISBN;
+            // Dijital kopya etiketini uzantıya göre belirle
+            string digitalFormatLabel = "Yok";
+            if (book.HasDigitalCopy && !string.IsNullOrEmpty(book.PdfFilePath))
+            {
+                string sideExt = System.IO.Path.GetExtension(book.PdfFilePath).ToLower();
+                digitalFormatLabel = sideExt == ".epub" ? "Var (EPUB)" : "Var (PDF)";
+            }
 
-            lblDetailInfo.Text = $"Kategori: {categoryName}\nBasım Yılı: {publishYear}\nYayın Evi: {publisherName}\nISBN: {isbn}\nDijital Kopya (PDF): {pdfStatus}\n\nDurum: {status}";
+            lblDetailInfo.Text = $"Kategori: {categoryName}\nBasım Yılı: {publishYear}\nYayın Evi: {publisherName}\nISBN: {isbn}\nDijital Kopya: {digitalFormatLabel}\n\nDurum: {status}";
             
             if (!string.IsNullOrEmpty(book.CoverImagePath) && System.IO.File.Exists(book.CoverImagePath))
                 picDetailCover.ImageLocation = book.CoverImagePath;
@@ -1542,7 +1564,13 @@ namespace KitapCell
             dgvBooks.Rows.Clear();
             foreach (var book in list)
             {
-                string status = book.HasDigitalCopy ? "📄 PDF" : (book.AvailableCopies > 0 ? "✅ Müsait" : "📤 Ödünçte");
+                string digitalLabelF = "📄 Dijital";
+                if (book.HasDigitalCopy && !string.IsNullOrEmpty(book.PdfFilePath))
+                {
+                    string extF = System.IO.Path.GetExtension(book.PdfFilePath).ToLower();
+                    digitalLabelF = extF == ".epub" ? "📄 EPUB" : "📄 PDF";
+                }
+                string status = book.HasDigitalCopy ? digitalLabelF : (book.AvailableCopies > 0 ? "✅ Müsait" : "📤 Ödünçte");
                 int rowIdx = dgvBooks.Rows.Add(
                     book.Title,
                     book.Author?.FullName ?? "Bilinmiyor",

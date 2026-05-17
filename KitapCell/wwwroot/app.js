@@ -67,7 +67,7 @@ function buildNavbar(user) {
 
   const brandHtml = `
     <a class="navbar-brand" href="/index.html">
-      <img src="/favicon.ico" alt="KitapCell" style="height:26px;width:26px;border-radius:5px;object-fit:contain;">
+      <span style="font-size:1.3rem;">📚</span>
       <span class="brand-text">KitapCell</span>
     </a>
     <div class="navbar-search">
