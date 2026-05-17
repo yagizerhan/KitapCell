@@ -1,35 +1,45 @@
-﻿using System.Drawing;
+using System.Drawing;
 using System.Windows.Forms;
 
 namespace KitapCell.Core
 {
     /// <summary>
-    /// Tüm dialog formlarına tutarlı koyu tema uygular.
+    /// Applies a consistent dark theme to all dialog and child forms in the application.
+    /// Call <see cref="Apply"/> in a form's constructor immediately after
+    /// <c>InitializeComponent()</c> to style the form and all its controls.
+    /// The colour palette matches the <c>MainForm</c> sidebar palette so that
+    /// pop-up dialogs feel visually unified with the main window.
     /// </summary>
     public static class ThemeHelper
     {
-        // Renk paleti — MainForm ile aynı
-        public static readonly Color BgDeep    = Color.FromArgb( 13,  17,  23);  // #0d1117
-        public static readonly Color BgBase    = Color.FromArgb( 22,  27,  34);  // #161b22
-        public static readonly Color BgPanel   = Color.FromArgb( 33,  38,  45);  // #21262d
-        public static readonly Color BorderClr = Color.FromArgb( 48,  54,  61);  // #30363d
-        public static readonly Color TxtMain   = Color.FromArgb(201, 209, 217);  // #c9d1d9
-        public static readonly Color TxtMuted  = Color.FromArgb(139, 148, 158);  // #8b949e
-        public static readonly Color Accent    = Color.FromArgb( 99, 102, 241);  // indigo
+        // Colour palette — must stay in sync with the MainForm colour constants.
+        public static readonly Color BgDeep    = Color.FromArgb( 13,  17,  23);  // #0d1117 — deepest background
+        public static readonly Color BgBase    = Color.FromArgb( 22,  27,  34);  // #161b22 — base panel background
+        public static readonly Color BgPanel   = Color.FromArgb( 33,  38,  45);  // #21262d — elevated surface
+        public static readonly Color BorderClr = Color.FromArgb( 48,  54,  61);  // #30363d — subtle border
+        public static readonly Color TxtMain   = Color.FromArgb(201, 209, 217);  // #c9d1d9 — primary text
+        public static readonly Color TxtMuted  = Color.FromArgb(139, 148, 158);  // #8b949e — secondary/muted text
+        public static readonly Color Accent    = Color.FromArgb( 99, 102, 241);  // indigo accent
 
         /// <summary>
-        /// Forma ve içindeki tüm kontrollerine koyu temayı uygular.
+        /// Applies the dark theme to the given form and recursively to all of its controls.
+        /// Also attempts to set the OS title bar to dark mode via the DWM API.
         /// </summary>
+        /// <param name="form">The Windows Form to theme.</param>
         public static void Apply(Form form)
         {
             form.BackColor  = BgDeep;
             form.ForeColor  = TxtMain;
             form.Font       = new Font("Segoe UI", 10F);
-            // Başlık çubuğunu koyu yapmak için DwmAPI (Windows 11 / 10 destekli)
+            // Request a dark title bar from Windows (Windows 10/11 only)
             TryDarkTitleBar(form);
             ApplyToControls(form.Controls);
         }
 
+        /// <summary>
+        /// Recursively visits every control in the collection and applies
+        /// the appropriate dark-theme colours based on the control type.
+        /// </summary>
         private static void ApplyToControls(Control.ControlCollection controls)
         {
             foreach (Control ctrl in controls)
@@ -90,6 +100,7 @@ namespace KitapCell.Core
                         nud.ForeColor = TxtMain;
                         break;
                     case TabControl tab:
+                        // Owner-draw the tab headers to match the dark palette
                         tab.Appearance = TabAppearance.Normal;
                         tab.DrawMode = TabDrawMode.OwnerDrawFixed;
                         tab.DrawItem += (s, e) =>
@@ -112,12 +123,17 @@ namespace KitapCell.Core
                         ctrl.BackColor = BgPanel;
                         break;
                     default:
+                        // For any other container type, recurse into its children
                         ApplyToControls(ctrl.Controls);
                         break;
                 }
             }
         }
 
+        /// <summary>
+        /// Applies full dark-theme styling to a <see cref="DataGridView"/> control.
+        /// Sets row height, header styles, alternating row colours, and selection colours.
+        /// </summary>
         private static void StyleDgv(DataGridView dgv)
         {
             dgv.BackgroundColor          = BgDeep;
@@ -146,7 +162,9 @@ namespace KitapCell.Core
         }
 
         /// <summary>
-        /// Windows 10/11'de başlık çubuğunu koyu yapar.
+        /// Requests a dark title bar from the Windows Desktop Window Manager (DWM).
+        /// Works on Windows 10 (attribute 19) and Windows 11 (attribute 20).
+        /// Silently skipped on older operating systems that do not support this API.
         /// </summary>
         private static void TryDarkTitleBar(Form form)
         {
@@ -157,10 +175,14 @@ namespace KitapCell.Core
                 int attrValue = 1;
                 NativeMethods.DwmSetWindowAttribute(hwnd, 20, ref attrValue, sizeof(int));
             }
-            catch { /* Eski Windows'ta desteklenmez, sessizce atla */ }
+            catch { /* Silently skip on older Windows versions that do not support this call. */ }
         }
     }
 
+    /// <summary>
+    /// P/Invoke wrapper for the Desktop Window Manager (DWM) API.
+    /// Used exclusively by <see cref="ThemeHelper"/> to apply dark title bars.
+    /// </summary>
     internal static class NativeMethods
     {
         [System.Runtime.InteropServices.DllImport("dwmapi.dll")]

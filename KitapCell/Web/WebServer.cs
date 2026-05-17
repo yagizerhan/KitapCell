@@ -18,16 +18,29 @@ namespace KitapCell.Web
     /// </summary>
     public static class WebServer
     {
+        /// <summary>The running Kestrel WebApplication instance. Null when the server is stopped.</summary>
         private static WebApplication? _app;
+
+        /// <summary>Cancellation token source used to gracefully shut down the Kestrel host.</summary>
         private static CancellationTokenSource? _cts;
 
+        /// <summary>True when the web server is currently running and accepting HTTP connections.</summary>
         public static bool IsRunning { get; private set; }
+
+        /// <summary>The port number the server is currently listening on. Defaults to 5000.</summary>
         public static int CurrentPort { get; private set; } = 5000;
 
-        // Log sistemi
+        /// <summary>Thread-safe queue of the last 500 server log entries (newest at the back).</summary>
         public static readonly ConcurrentQueue<string> Logs = new();
+
+        /// <summary>Raised on the thread-pool whenever a new log entry is added. Subscribed by the Settings UI.</summary>
         public static event Action<string>? LogAdded;
 
+        /// <summary>
+        /// Appends a timestamped entry to the internal log queue.
+        /// Automatically trims the queue to the last 500 entries to prevent unbounded memory growth.
+        /// Fires the <see cref="LogAdded"/> event so subscribers (e.g. the Settings log panel) can update.
+        /// </summary>
         public static void AddLog(string msg)
         {
             var entry = $"[{DateTime.Now:HH:mm:ss}] {msg}";
@@ -36,6 +49,10 @@ namespace KitapCell.Web
             LogAdded?.Invoke(entry);
         }
 
+        /// <summary>
+        /// Resolves the machine's primary local (LAN) IPv4 address.
+        /// Falls back to "127.0.0.1" if no suitable address is found.
+        /// </summary>
         public static string GetLocalIPAddress()
         {
             try
@@ -49,8 +66,17 @@ namespace KitapCell.Web
             return "127.0.0.1";
         }
 
+        /// <summary>Returns the full LAN URL of the web server (e.g. "http://192.168.1.10:5000").</summary>
         public static string GetNetworkUrl() => $"http://{GetLocalIPAddress()}:{CurrentPort}";
 
+        /// <summary>
+        /// Builds and starts the Kestrel web server on the given port.
+        /// Configures static file serving for <c>wwwroot</c> and <c>Assets</c>,
+        /// registers the API routes, and starts listening for HTTP connections.
+        /// Does nothing and returns <c>true</c> if the server is already running.
+        /// </summary>
+        /// <param name="port">TCP port to listen on. Default: 5000.</param>
+        /// <returns>True if the server started successfully; false on error.</returns>
         public static async Task<bool> StartAsync(int port = 5000)
         {
             if (IsRunning) return true;
@@ -139,6 +165,11 @@ namespace KitapCell.Web
             }
         }
 
+        /// <summary>
+        /// Gracefully shuts down the Kestrel web server.
+        /// Cancels the host's token, waits for active requests to drain, then
+        /// clears the <c>_app</c> and <c>_cts</c> references.
+        /// </summary>
         public static async Task StopAsync()
         {
             if (!IsRunning || _app == null) return;

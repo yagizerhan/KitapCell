@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -7,35 +7,69 @@ using System.Threading.Tasks;
 
 namespace KitapCell.Services
 {
+    /// <summary>
+    /// Data transfer object (DTO) returned by <see cref="BookFetchService"/>.
+    /// Contains all bibliographic fields that can be automatically filled in
+    /// the AddBook form after a successful ISBN lookup.
+    /// </summary>
     public class FetchedBookData
     {
+        /// <summary>Book title returned by the API.</summary>
         public string Title { get; set; } = "";
+
+        /// <summary>List of author names associated with the book.</summary>
         public List<string> Authors { get; set; } = new List<string>();
+
+        /// <summary>Name of the publishing house.</summary>
         public string Publisher { get; set; } = "";
+
+        /// <summary>Publication year as a string (e.g. "2003" or "March 2003").</summary>
         public string PublishYear { get; set; } = "";
+
+        /// <summary>Total number of pages in the book. Zero if not provided by the API.</summary>
         public int PageCount { get; set; } = 0;
+
+        /// <summary>Direct URL to the book cover image returned by the API. Empty if unavailable.</summary>
         public string CoverUrl { get; set; } = "";
     }
 
+    /// <summary>
+    /// Fetches book metadata from external APIs using an ISBN number.
+    /// Tries <b>OpenLibrary</b> first; falls back to <b>Google Books</b> if no result is found.
+    /// Both APIs are free and require no authentication key.
+    /// Called by <c>AddBookForm.BtnSearchIsbn_Click</c> and triggered by
+    /// the barcode scanner Enter event (<c>TxtISBN_KeyDown</c>).
+    /// </summary>
     public static class BookFetchService
     {
+        /// <summary>Shared HTTP client for all outbound API requests (reuse to avoid socket exhaustion).</summary>
         private static readonly HttpClient _httpClient = new HttpClient();
 
+        /// <summary>
+        /// Main entry point. Strips dashes from the ISBN, then queries OpenLibrary.
+        /// If OpenLibrary returns no usable data, retries with Google Books.
+        /// </summary>
+        /// <param name="isbn">Raw ISBN-10 or ISBN-13 string (dashes are stripped automatically).</param>
+        /// <returns>
+        /// A <see cref="FetchedBookData"/> object populated with the best available data,
+        /// or <c>null</c> if neither API returned a result.
+        /// </returns>
         public static async Task<FetchedBookData?> FetchBookByIsbnAsync(string isbn)
         {
             if (string.IsNullOrWhiteSpace(isbn))
                 return null;
 
+            // Normalise: remove dashes and trim whitespace (e.g. "978-3-16-148410-0" → "9783161484100")
             isbn = isbn.Replace("-", "").Trim();
 
-            // 1. OpenLibrary API'sini dene
+            // 1. Try OpenLibrary first (richer metadata for older books)
             var openLibraryData = await TryFetchFromOpenLibrary(isbn);
             if (openLibraryData != null && !string.IsNullOrWhiteSpace(openLibraryData.Title))
             {
                 return openLibraryData;
             }
 
-            // 2. Yukarıdan sonuç gelmezse Google Books API'sini dene
+            // 2. Fall back to Google Books (better coverage for recent publications)
             var googleData = await TryFetchFromGoogleBooks(isbn);
             if (googleData != null && !string.IsNullOrWhiteSpace(googleData.Title))
             {
@@ -45,6 +79,11 @@ namespace KitapCell.Services
             return null;
         }
 
+        /// <summary>
+        /// Queries the OpenLibrary Books API for the given ISBN.
+        /// Endpoint: https://openlibrary.org/api/books?bibkeys=ISBN:{isbn}&amp;format=json&amp;jscmd=data
+        /// Returns null on any network error or if the book is not found.
+        /// </summary>
         private static async Task<FetchedBookData?> TryFetchFromOpenLibrary(string isbn)
         {
             try
@@ -56,18 +95,20 @@ namespace KitapCell.Services
                     return null;
 
                 string jsonContent = await response.Content.ReadAsStringAsync();
-                
+
+                // OpenLibrary returns "{}" (empty object) when the ISBN is not in their catalog
                 if (string.IsNullOrWhiteSpace(jsonContent) || jsonContent == "{}")
                     return null;
 
                 using var doc = JsonDocument.Parse(jsonContent);
                 var root = doc.RootElement;
                 string key = $"ISBN:{isbn}";
-                
+
                 if (!root.TryGetProperty(key, out var bookElement))
                     return null;
 
                 var result = new FetchedBookData();
+
                 if (bookElement.TryGetProperty("title", out var titleElement))
                     result.Title = titleElement.GetString() ?? "";
 
@@ -98,6 +139,7 @@ namespace KitapCell.Services
                     }
                 }
 
+                // Prefer the largest available cover image
                 if (bookElement.TryGetProperty("cover", out var coverElement))
                 {
                     if (coverElement.TryGetProperty("large", out var largeElement))
@@ -110,10 +152,16 @@ namespace KitapCell.Services
             }
             catch
             {
+                // Swallow all network and parse errors — the caller will try Google Books next
                 return null;
             }
         }
 
+        /// <summary>
+        /// Queries the Google Books API for the given ISBN.
+        /// Endpoint: https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}
+        /// Returns null on any network error or if the book is not found.
+        /// </summary>
         private static async Task<FetchedBookData?> TryFetchFromGoogleBooks(string isbn)
         {
             try
@@ -128,6 +176,7 @@ namespace KitapCell.Services
                 using var doc = JsonDocument.Parse(jsonContent);
                 var root = doc.RootElement;
 
+                // Google Books returns totalItems=0 when no match is found
                 if (!root.TryGetProperty("items", out var itemsElement) || itemsElement.ValueKind != JsonValueKind.Array || itemsElement.GetArrayLength() == 0)
                     return null;
 
@@ -136,6 +185,7 @@ namespace KitapCell.Services
                     return null;
 
                 var result = new FetchedBookData();
+
                 if (volumeInfo.TryGetProperty("title", out var titleElement))
                     result.Title = titleElement.GetString() ?? "";
 
@@ -144,6 +194,7 @@ namespace KitapCell.Services
 
                 if (volumeInfo.TryGetProperty("publishedDate", out var dateElement))
                 {
+                    // Google Books returns dates as "YYYY", "YYYY-MM", or "YYYY-MM-DD"
                     string date = dateElement.GetString() ?? "";
                     if (date.Length >= 4)
                         result.PublishYear = date.Substring(0, 4);
@@ -172,6 +223,7 @@ namespace KitapCell.Services
             }
             catch
             {
+                // Swallow all network and parse errors — the UI will prompt for manual entry
                 return null;
             }
         }
