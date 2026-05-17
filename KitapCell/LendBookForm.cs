@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -10,11 +10,11 @@ using KitapCell.Core;
 namespace KitapCell
 {
     /// <summary>
-    /// Kitap ödünç verme işlemini gerçekleştiren iletişim kutusu (dialog) formu.
-    /// Çağıran kod tarafından seçili kitap bilgisi iletilir; form üzerinden
-    /// hangi üyeye ve hangi tarihe kadar ödünç verileceği belirlenir.
-    /// Onay verildiğinde <see cref="BookLoan"/> kaydı oluşturulur ve
-    /// kitabın mevcut kopya sayısı (<see cref="Book.AvailableCopies"/>) bir azaltılır.
+    /// Dialog form for lending a book to a library member.
+    /// The calling code passes the selected book; the librarian then chooses
+    /// which member to lend it to and sets the due date.
+    /// On confirmation a <see cref="Models.BookLoan"/> record is created and
+    /// <see cref="Models.Book.AvailableCopies"/> is decremented by one.
     /// </summary>
     public partial class LendBookForm : Form
     {
@@ -24,9 +24,9 @@ namespace KitapCell
         private Book _selectedBook;
 
         /// <summary>
-        /// Formu başlatır; ödünç verilecek kitabı ve veritabanı bağlamını hazırlar.
+        /// Initialises the form with the book to be lent and sets up the database context.
         /// </summary>
-        /// <param name="book">Ödünç verilecek kitap nesnesi.</param>
+        /// <param name="book">The book entity that will be lent out.</param>
         public LendBookForm(Book book)
         {
             InitializeComponent();
@@ -41,9 +41,9 @@ namespace KitapCell
         }
 
         /// <summary>
-        /// Form yüklendiğinde seçili kitap adını etiket üzerinde gösterir,
-        /// varsayılan iade tarihini (<see cref="AppConfig.DefaultLoanDays"/>) ayarlar
-        /// ve tüm aktif üyeleri açılır listeye yükler.
+        /// Populates the form on load: displays the selected book title, sets the default
+        /// due date from <see cref="Core.AppConfig.DefaultLoanDays"/>, and loads all
+        /// active members into the user drop-down list.
         /// </summary>
         private async void LendBookForm_Load(object sender, EventArgs e)
         {
@@ -57,8 +57,8 @@ namespace KitapCell
         }
 
         /// <summary>
-        /// Seçilen üye ve tarih bilgileriyle ödünç kaydını oluşturur,
-        /// kitabın mevcut kopya sayısını düşürür ve formu kapatır.
+        /// Confirms the loan transaction: creates the <see cref="Models.BookLoan"/> record,
+        /// decrements the book's available copy count, and closes the dialog with OK.
         /// </summary>
         private async void btnOnayla_Click(object sender, EventArgs e)
         {

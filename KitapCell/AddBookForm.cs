@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -10,17 +10,35 @@ using KitapCell.Core;
 
 namespace KitapCell
 {
+    /// <summary>
+    /// Dialog form used to add a new book or edit an existing one in the library catalog.
+    /// Supports manual data entry and automatic metadata fetching via ISBN lookup
+    /// (Open Library API → Google Books API fallback).
+    /// Also supports USB barcode scanner input: when the scanner sends an Enter key after
+    /// writing the ISBN into <c>txtISBN</c>, the lookup is triggered automatically.
+    /// Cover images can be selected manually or extracted from the first PDF page.
+    /// </summary>
     public partial class AddBookForm : Form
     {
+        /// <summary>True when the form is opened for editing an existing book title; false for adding a new one.</summary>
         private bool isEdit;
-        // EF Core Data Katmanları
+
+        /// <summary>EF Core database context for the lifetime of this form.</summary>
         private LibraryDbContext _dbContext;
+
+        /// <summary>Repository for book CRUD operations.</summary>
         private BookRepository _bookRepo;
+
+        /// <summary>Repository for category read operations (populates the drop-down).</summary>
         private Repository<Category> _categoryRepo;
+
+        /// <summary>Repository for author lookup and creation.</summary>
         private Repository<Author> _authorRepo;
-        
-        // Seçilen Dosya Yolları
+
+        /// <summary>Full path to the cover image selected by the user (empty if none selected).</summary>
         private string _selectedCoverPath = string.Empty;
+
+        /// <summary>Full path to the PDF or EPUB file selected by the user (empty if none selected).</summary>
         private string _selectedPdfPath = string.Empty;
 
         public AddBookForm(string existingTitle = "")
@@ -46,6 +64,8 @@ namespace KitapCell
             this.Load += AddBookForm_Load;
             btnSelectCover.Click += BtnSelectCover_Click;
             btnSelectPdf.Click += BtnSelectPdf_Click;
+            // Barkod okuyucu Enter göndererek ISBN alanını tetikler
+            txtISBN.KeyDown += TxtISBN_KeyDown;
         }
 
         private async void AddBookForm_Load(object sender, EventArgs e)
@@ -206,6 +226,23 @@ namespace KitapCell
         {
             _dbContext?.Dispose();
             base.OnFormClosed(e);
+        }
+
+        /// <summary>
+        /// KeyDown handler for the ISBN text box.
+        /// When a USB barcode scanner finishes reading it automatically sends an Enter key;
+        /// this handler intercepts that key press and triggers the ISBN API lookup,
+        /// eliminating the need to click the search button manually.
+        /// <see cref="System.Windows.Forms.KeyEventArgs.SuppressKeyPress"/> is set to true
+        /// to prevent the default Enter-key behaviour (e.g. activating the Accept button).
+        /// </summary>
+        private void TxtISBN_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = true; // Bip sesini engelle
+                BtnSearchIsbn_Click(sender, EventArgs.Empty);
+            }
         }
 
         private async void BtnSearchIsbn_Click(object sender, EventArgs e)

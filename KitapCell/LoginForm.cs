@@ -1,13 +1,23 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using KitapCell.Core;
 
 namespace KitapCell
 {
+    /// <summary>
+    /// The application's entry dialog that handles both login and registration.
+    /// Displays two tabs: one for signing in with email + password,
+    /// and one for creating a new member account.
+    /// On successful authentication the <see cref="Core.GlobalSession.CurrentUser"/> is set
+    /// and the form returns <see cref="System.Windows.Forms.DialogResult.OK"/>.
+    /// </summary>
     public partial class LoginForm : Form
     {
+        /// <summary>True when the authenticated user holds the Admin role. Set after successful login.</summary>
         public bool IsAdmin { get; private set; }
+
+        /// <summary>Display name (first + last) of the authenticated user. Set after successful login.</summary>
         public string UserName { get; private set; } = "";
 
         public LoginForm()
@@ -17,6 +27,11 @@ namespace KitapCell
             ThemeHelper.Apply(this);
         }
 
+        /// <summary>
+        /// Persists the authenticated user's ID to a local file so that the
+        /// application can restore the session on the next launch without forcing
+        /// the user to log in again.
+        /// </summary>
         private void SaveSession(int userId)
         {
             try
@@ -27,6 +42,12 @@ namespace KitapCell
             catch { }
         }
 
+        /// <summary>
+        /// Handles the Login button click.
+        /// If the Admin shortcut checkbox is checked, bypasses password validation
+        /// and logs in as the seeded admin account directly (demo convenience feature).
+        /// Otherwise validates the entered email and password against the database.
+        /// </summary>
         private async void BtnGirisYap_Click(object sender, EventArgs e)
         {
             using var db = new Data.LibraryDbContext();
@@ -81,6 +102,12 @@ namespace KitapCell
             this.Close();
         }
 
+        /// <summary>
+        /// Handles the Register button click.
+        /// Validates that all required fields are filled, passwords match, and the
+        /// email is not already registered. On success, inserts the new user record
+        /// and switches the tab control back to the Login tab.
+        /// </summary>
         private async void BtnKayitOl_Click(object sender, EventArgs e)
         {
             string kulAdi = txtKayitKullanici.Text.Trim();
