@@ -159,7 +159,10 @@ namespace KitapCell
             // Otomatik Kapak Çıkarımı (Sadece PDF ve kapak elle seçilmemişse)
             if (string.IsNullOrEmpty(savedCoverPath) && !string.IsNullOrEmpty(savedPdfPath))
             {
-                if (Path.GetExtension(savedPdfPath).ToLower() == ".pdf")
+                string ext2 = Path.GetExtension(savedPdfPath).ToLower();
+
+                // ── PDF: ilk sayfayı render et ───────────────────────────────────
+                if (ext2 == ".pdf")
                 {
                     try
                     {
@@ -167,7 +170,6 @@ namespace KitapCell
                         {
                             if (pdfDoc.PageCount > 0)
                             {
-                                // İlk sayfayı bitmap olarak render et (150 DPI)
                                 using (var img = pdfDoc.Render(0, 150, 150, true))
                                 {
                                     string cvrFileName = Guid.NewGuid().ToString() + "_auto.png";
@@ -179,7 +181,100 @@ namespace KitapCell
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("Otomatik kapak çıkarılamadı: " + ex.Message);
+                        Console.WriteLine("Otomatik PDF kapak çıkarılamadı: " + ex.Message);
+                    }
+                }
+
+                // ── EPUB: ZIP içinden kapak görselini çıkar ───────────────────────
+                else if (ext2 == ".epub")
+                {
+                    try
+                    {
+                        using var zip = System.IO.Compression.ZipFile.OpenRead(savedPdfPath);
+                        System.IO.Compression.ZipArchiveEntry? coverEntry = null;
+
+                        // 1) OPF dosyasını bul ve kapak referansını çöz
+                        var containerEntry = zip.GetEntry("META-INF/container.xml");
+                        if (containerEntry != null)
+                        {
+                            using var cs = containerEntry.Open();
+                            var xmlDoc = new System.Xml.XmlDocument();
+                            xmlDoc.Load(cs);
+                            var nsm = new System.Xml.XmlNamespaceManager(xmlDoc.NameTable);
+                            nsm.AddNamespace("cnt", "urn:oasis:names:tc:opendocument:xmlns:container");
+                            var rfNode = xmlDoc.SelectSingleNode("//cnt:rootfile/@full-path", nsm);
+                            string opfPath = rfNode?.Value ?? "OEBPS/content.opf";
+                            string opfDir  = Path.GetDirectoryName(opfPath)?.Replace('\\', '/') ?? "";
+
+                            var opfEntry = zip.GetEntry(opfPath);
+                            if (opfEntry != null)
+                            {
+                                using var opfStream = opfEntry.Open();
+                                var opfDoc = new System.Xml.XmlDocument();
+                                opfDoc.Load(opfStream);
+                                var opfNs = new System.Xml.XmlNamespaceManager(opfDoc.NameTable);
+                                opfNs.AddNamespace("opf", "http://www.idpf.org/2007/opf");
+
+                                // EPUB 2: <meta name="cover" content="cover-id"/>
+                                var metaCover = opfDoc.SelectSingleNode("//opf:meta[@name='cover']/@content", opfNs);
+                                if (metaCover != null)
+                                {
+                                    string covId = metaCover.Value;
+                                    var itemHref = opfDoc.SelectSingleNode($"//opf:item[@id='{covId}']/@href", opfNs);
+                                    if (itemHref != null)
+                                    {
+                                        string rel = string.IsNullOrEmpty(opfDir) ? itemHref.Value : opfDir + "/" + itemHref.Value;
+                                        coverEntry = zip.GetEntry(rel);
+                                    }
+                                }
+
+                                // EPUB 3: <item properties="cover-image" href="..."/>
+                                if (coverEntry == null)
+                                {
+                                    var propHref = opfDoc.SelectSingleNode("//opf:item[@properties='cover-image']/@href", opfNs);
+                                    if (propHref != null)
+                                    {
+                                        string rel = string.IsNullOrEmpty(opfDir) ? propHref.Value : opfDir + "/" + propHref.Value;
+                                        coverEntry = zip.GetEntry(rel);
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2) OPF bulunamazsa yaygın yolları dene
+                        if (coverEntry == null)
+                        {
+                            string[] fallbacks = {
+                                "cover.jpg", "cover.jpeg", "cover.png",
+                                "OEBPS/cover.jpg", "OEBPS/cover.jpeg", "OEBPS/cover.png",
+                                "OEBPS/Images/cover.jpg", "OEBPS/Images/cover.jpeg", "OEBPS/Images/cover.png",
+                                "OEBPS/images/cover.jpg", "OEBPS/images/cover.jpeg", "OEBPS/images/cover.png",
+                                "images/cover.jpg", "Images/cover.jpg",
+                            };
+                            foreach (var fb in fallbacks)
+                            {
+                                coverEntry = zip.GetEntry(fb);
+                                if (coverEntry != null) break;
+                            }
+                        }
+
+                        // 3) Kapak girişi bulunduysa dosyaya kaydet
+                        if (coverEntry != null)
+                        {
+                            string cvrExt = Path.GetExtension(coverEntry.FullName).ToLower();
+                            if (cvrExt == ".jpg" || cvrExt == ".jpeg" || cvrExt == ".png")
+                            {
+                                string cvrFileName = Guid.NewGuid().ToString() + "_epub_cover" + cvrExt;
+                                savedCoverPath = Path.Combine(coversFolder, cvrFileName);
+                                using var coverStream = coverEntry.Open();
+                                using var fs = new FileStream(savedCoverPath, FileMode.Create);
+                                await coverStream.CopyToAsync(fs);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Otomatik EPUB kapak çıkarılamadı: " + ex.Message);
                     }
                 }
             }

@@ -1101,19 +1101,46 @@ namespace KitapCell
 
         private void FilterBooks(string query)
         {
-            // Basit arama filtresi
+            bool isEmptyQuery = string.IsNullOrEmpty(query);
+            string qLower = query?.ToLower() ?? "";
+
+            // ── Liste görünümü (DataGridView) ────────────────────────────────────
             foreach (DataGridViewRow row in dgvBooks.Rows)
             {
-                bool visible = string.IsNullOrEmpty(query);
+                bool visible = isEmptyQuery;
                 if (!visible)
                 {
                     foreach (DataGridViewCell cell in row.Cells)
                     {
-                        if (cell.Value?.ToString().ToLower().Contains(query.ToLower()) == true)
+                        if (cell.Value?.ToString().ToLower().Contains(qLower) == true)
                         { visible = true; break; }
                     }
                 }
                 row.Visible = visible;
+            }
+
+            // ── Kapak (Grid) görünümü (FlowLayoutPanel) ──────────────────────────
+            foreach (Control ctrl in flpGridBooks.Controls)
+            {
+                if (ctrl is not Panel pnl) continue;
+
+                if (isEmptyQuery)
+                {
+                    pnl.Visible = true;
+                    continue;
+                }
+
+                bool found = false;
+                foreach (Control child in pnl.Controls)
+                {
+                    if (child is Label lbl && !string.IsNullOrEmpty(lbl.Text)
+                        && lbl.Text.ToLower().Contains(qLower))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                pnl.Visible = found;
             }
         }
 

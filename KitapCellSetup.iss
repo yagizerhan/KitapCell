@@ -1,12 +1,12 @@
 [Setup]
 ; Genel Kurulum Ayarları
 AppName=KitapCell Kutuphane Otomasyonu
-AppVersion=1.0.2
+AppVersion=1.0.3
 AppPublisher=yagizerhan
 DefaultDirName={autopf}\KitapCell
 DefaultGroupName=KitapCell
 OutputDir=.\
-OutputBaseFilename=KitapCell_Setup_v1.0.2
+OutputBaseFilename=KitapCell_Setup_v1.0.3
 Compression=lzma2
 SolidCompression=yes
 ; SetupIconFile iptal edildi çünkü app.ico dosyası Inno Setup için çok büyük. Varsayılan ikon kullanılacak.
