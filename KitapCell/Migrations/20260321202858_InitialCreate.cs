@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -252,22 +252,8 @@ namespace KitapCell.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.InsertData(
-                table: "Categories",
-                columns: new[] { "Id", "IconEmoji", "Name" },
-                values: new object[,]
-                {
-                    { 1, "📚", "Genel" },
-                    { 2, "📖", "Roman" },
-                    { 3, "🚀", "Bilim Kurgu" },
-                    { 4, "🏛️", "Tarih" },
-                    { 5, "🔬", "Bilim" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Users",
-                columns: new[] { "Id", "CanAddBook", "CanDeleteBook", "CanEditBook", "Email", "FirstName", "IdentityNumber", "IsActive", "LastName", "PasswordHash", "Phone", "ProfileImagePath", "RegistrationDate", "ReputationScore", "Role", "TotalPenalty" },
-                values: new object[] { 1, true, true, true, "admin@library.com", "Admin", "11111111111", true, "Kullanıcı", "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3", null, null, new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), 0, 2, 0m });
+            // Admin kullanıcısı ve kategoriler HasData() (OnModelCreating) üzerinden seed edilir.
+            // Burada tekrar InsertData yapılmamalı — çakışma DB bozulmasına neden olur.
 
             migrationBuilder.CreateIndex(
                 name: "IX_BookLoans_BookId",

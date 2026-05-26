@@ -269,49 +269,110 @@ namespace KitapCell
 
             var pnlMain = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 20, 0, 0) };
 
-            var lblDB = new Label { Text = "Bu bölümden sistem veritabanının yedeğini alabilir, önceden alınmış bir yedeği sisteme yükleyebilir veya tüm veritabanını fabrika ayarlarına sıfırlayabilirsiniz.", 
-                                    Width = 600, Height = 60, Font = new Font("Segoe UI", 10F), ForeColor = Color.FromArgb(139, 148, 158) };
+            var lblDB = new Label { Text = "Bu bölümden sistem verilerinin tam yedeğini alabilir (veritabanı + kitap dosyaları + kapaklar), önceden alınmış bir yedeği sisteme yükleyebilir veya tüm veritabanını fabrika ayarlarına sıfırlayabilirsiniz.", 
+                                    Width = 620, Height = 65, Font = new Font("Segoe UI", 10F), ForeColor = Color.FromArgb(139, 148, 158) };
             
-            var btnBackup = new Button { Text = "🔽 Yedek Al (Backup)", Location = new Point(0, 80), Size = new Size(200, 45), BackColor = Color.FromArgb(59, 130, 246), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 11F, FontStyle.Bold), Cursor = Cursors.Hand };
+            var btnBackup = new Button { Text = "🔽 Tam Yedek Al (ZIP)", Location = new Point(0, 85), Size = new Size(200, 45), BackColor = Color.FromArgb(59, 130, 246), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 11F, FontStyle.Bold), Cursor = Cursors.Hand };
             btnBackup.FlatAppearance.BorderSize = 0;
             
-            var btnRestore = new Button { Text = "🔼 Geri Yükle (Restore)", Location = new Point(220, 80), Size = new Size(200, 45), BackColor = Color.FromArgb(245, 158, 11), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 11F, FontStyle.Bold), Cursor = Cursors.Hand };
+            var btnRestore = new Button { Text = "🔼 Geri Yükle (ZIP)", Location = new Point(220, 85), Size = new Size(200, 45), BackColor = Color.FromArgb(245, 158, 11), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 11F, FontStyle.Bold), Cursor = Cursors.Hand };
             btnRestore.FlatAppearance.BorderSize = 0;
 
-            var btnReset = new Button { Text = "🧨 Sistemi Sıfırla (Factory Reset)", Location = new Point(0, 150), Size = new Size(300, 45), BackColor = Color.Transparent, ForeColor = Color.FromArgb(239, 68, 68), FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 11F, FontStyle.Bold), Cursor = Cursors.Hand };
+            var btnReset = new Button { Text = "🧨 Sistemi Sıfırla (Factory Reset)", Location = new Point(0, 155), Size = new Size(300, 45), BackColor = Color.Transparent, ForeColor = Color.FromArgb(239, 68, 68), FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 11F, FontStyle.Bold), Cursor = Cursors.Hand };
             btnReset.FlatAppearance.BorderColor = Color.FromArgb(239, 68, 68);
 
             string appDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KitapCell");
-            string dbPath = Path.Combine(appDataFolder, "library.db");
+            string dbPath        = Path.Combine(appDataFolder, "library.db");
+            string assetsFolder  = Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "Assets");
 
-            btnBackup.Click += (s, e) => {
+            // ── TAM YEDEK AL (DB + Assets → ZIP) ─────────────────────────────────
+            btnBackup.Click += (s, e) =>
+            {
                 using var sfd = new SaveFileDialog();
-                sfd.Filter = "Veritabanı Dosyaları (*.db)|*.db";
-                sfd.FileName = $"library_backup_{DateTime.Now:yyyyMMdd_HHmmss}.db";
-                if(sfd.ShowDialog() == DialogResult.OK) {
-                    try {
-                        File.Copy(dbPath, sfd.FileName, true);
-                        MessageBox.Show("Veritabanı yedeği başarıyla alındı.", "Başarılı", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    } catch(Exception ex) {
-                        MessageBox.Show("Yedek alınırken hata oluştu:\n" + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                sfd.Filter   = "KitapCell Yedek Dosyası (*.zip)|*.zip";
+                sfd.FileName = $"KitapCell_backup_{DateTime.Now:yyyyMMdd_HHmmss}.zip";
+                if (sfd.ShowDialog() != DialogResult.OK) return;
+
+                try
+                {
+                    // Geçici klasör oluştur, tüm dosyaları topla, ZIP'le
+                    string tmpDir = Path.Combine(Path.GetTempPath(), $"KitapCell_backup_{Guid.NewGuid():N}");
+                    Directory.CreateDirectory(tmpDir);
+
+                    // Veritabanını kopyala
+                    if (File.Exists(dbPath))
+                        File.Copy(dbPath, Path.Combine(tmpDir, "library.db"), true);
+
+                    // Assets klasörünü kopyala (Covers, Uploads/PDFs, vb.)
+                    if (Directory.Exists(assetsFolder))
+                    {
+                        string assetsDest = Path.Combine(tmpDir, "Assets");
+                        CopyDirectory(assetsFolder, assetsDest);
                     }
+
+                    // ZIP oluştur
+                    if (File.Exists(sfd.FileName)) File.Delete(sfd.FileName);
+                    System.IO.Compression.ZipFile.CreateFromDirectory(tmpDir, sfd.FileName);
+                    Directory.Delete(tmpDir, true);
+
+                    MessageBox.Show($"Tam yedek başarıyla alındı:\n{sfd.FileName}\n\nİçerik: Veritabanı + Kitap/Kapak dosyaları",
+                        "Yedek Alındı", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Yedek alınırken hata oluştu:\n" + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             };
 
-            btnRestore.Click += (s, e) => {
-                var ask = MessageBox.Show("Geri yükleme işlemi, mevcut tüm verilerinizin üzerine yazılır. \n\nEmin misiniz?", "Uyarı", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            // ── GERİ YÜKLE (ZIP) ─────────────────────────────────────────────────
+            btnRestore.Click += (s, e) =>
+            {
+                var ask = MessageBox.Show("Geri yükleme işlemi, mevcut tüm verilerinizin (veritabanı + dosyalar) üzerine yazılır.\n\nEmin misiniz?",
+                    "Uyarı", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (ask != DialogResult.Yes) return;
 
                 using var ofd = new OpenFileDialog();
-                ofd.Filter = "Veritabanı Dosyaları (*.db)|*.db";
-                if(ofd.ShowDialog() == DialogResult.OK) {
-                    try {
+                ofd.Filter = "KitapCell Yedek Dosyası (*.zip)|*.zip|Veritabanı (*.db)|*.db";
+                if (ofd.ShowDialog() != DialogResult.OK) return;
+
+                try
+                {
+                    string ext = Path.GetExtension(ofd.FileName).ToLower();
+
+                    if (ext == ".db")
+                    {
+                        // Eski tek-dosya formatı desteği
                         File.Copy(ofd.FileName, dbPath, true);
-                        MessageBox.Show("Veritabanı geri yüklendi. Değişikliklerin etkili olması için uygulama kapatılacaktır. Lütfen yeniden başlatın.", "Başarılı", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        Application.Exit();
-                    } catch(Exception ex) {
-                        MessageBox.Show("Geri yükleme başarısız. Uygulama veritabanını kullanıyor olabilir:\n" + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
+                    else
+                    {
+                        // Yeni ZIP formatı
+                        string tmpDir = Path.Combine(Path.GetTempPath(), $"KitapCell_restore_{Guid.NewGuid():N}");
+                        System.IO.Compression.ZipFile.ExtractToDirectory(ofd.FileName, tmpDir, true);
+
+                        // DB geri yükle
+                        string restoredDb = Path.Combine(tmpDir, "library.db");
+                        if (File.Exists(restoredDb))
+                        {
+                            Directory.CreateDirectory(appDataFolder);
+                            File.Copy(restoredDb, dbPath, true);
+                        }
+
+                        // Assets geri yükle
+                        string restoredAssets = Path.Combine(tmpDir, "Assets");
+                        if (Directory.Exists(restoredAssets) && Directory.Exists(assetsFolder))
+                            CopyDirectory(restoredAssets, assetsFolder);
+
+                        Directory.Delete(tmpDir, true);
+                    }
+
+                    MessageBox.Show("Veriler geri yüklendi.\nDeğişikliklerin etkili olması için uygulama kapatılacaktır.",
+                        "Geri Yüklendi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    Application.Exit();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Geri yükleme başarısız:\n" + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             };
 
@@ -335,6 +396,16 @@ namespace KitapCell
             pnlMain.Controls.AddRange(new Control[] { lblDB, btnBackup, btnRestore, btnReset });
             _pnlContent.Controls.Add(pnlMain);
             pnlMain.BringToFront();
+        }
+
+        /// <summary>Bir klasörü ve tüm içeriğini hedef konuma kopyalar.</summary>
+        private static void CopyDirectory(string source, string dest)
+        {
+            Directory.CreateDirectory(dest);
+            foreach (var file in Directory.GetFiles(source))
+                File.Copy(file, Path.Combine(dest, Path.GetFileName(file)), true);
+            foreach (var dir in Directory.GetDirectories(source))
+                CopyDirectory(dir, Path.Combine(dest, Path.GetFileName(dir)));
         }
 
         private async void ShowTab_Hakkinda()
