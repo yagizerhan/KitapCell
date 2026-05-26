@@ -299,9 +299,19 @@ namespace KitapCell
                     string tmpDir = Path.Combine(Path.GetTempPath(), $"KitapCell_backup_{Guid.NewGuid():N}");
                     Directory.CreateDirectory(tmpDir);
 
-                    // Veritabanını kopyala
+                    // Veritabanını kopyalamadan önce WAL'ı checkpoint et
+                    // (WAL modunda çalışan DB yedeklenirken tutarsız olabilir)
                     if (File.Exists(dbPath))
+                    {
+                        using var sqlConn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}");
+                        sqlConn.Open();
+                        using var cmd = sqlConn.CreateCommand();
+                        cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+                        cmd.ExecuteNonQuery();
+                        sqlConn.Close();
+
                         File.Copy(dbPath, Path.Combine(tmpDir, "library.db"), true);
+                    }
 
                     // Assets klasörünü kopyala (Covers, Uploads/PDFs, vb.)
                     if (Directory.Exists(assetsFolder))
@@ -339,6 +349,19 @@ namespace KitapCell
                 {
                     string ext = Path.GetExtension(ofd.FileName).ToLower();
 
+                    // EF Core bağlantı havuzundaki tüm SQLite bağlantılarını kapat.
+                    // Bunu YAPMADAN -wal / -shm dosyaları kilitli kalır ve silinemez.
+                    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+
+                    // Eski WAL/SHM dosyalarını ÖNCE sil (DB kopyası gelince tutarsızlık yaratırlar)
+                    foreach (var stale in new[] { dbPath + "-wal", dbPath + "-shm" })
+                    {
+                        try { if (File.Exists(stale)) File.Delete(stale); }
+                        catch { /* kilitse bile devam et — yeniden başlatma çözecek */ }
+                    }
+
                     if (ext == ".db")
                     {
                         // Eski tek-dosya formatı desteği
@@ -358,17 +381,91 @@ namespace KitapCell
                             File.Copy(restoredDb, dbPath, true);
                         }
 
-                        // Assets geri yükle
+                        // Assets geri yükle (hedef klasör yoksa oluştur)
                         string restoredAssets = Path.Combine(tmpDir, "Assets");
-                        if (Directory.Exists(restoredAssets) && Directory.Exists(assetsFolder))
+                        if (Directory.Exists(restoredAssets))
+                        {
+                            Directory.CreateDirectory(assetsFolder);
                             CopyDirectory(restoredAssets, assetsFolder);
+                        }
 
                         Directory.Delete(tmpDir, true);
                     }
 
-                    MessageBox.Show("Veriler geri yüklendi.\nDeğişikliklerin etkili olması için uygulama kapatılacaktır.",
+                    // ── PATH REBASE ───────────────────────────────────────────────────────
+                    // Yedek farklı bir makinede veya farklı bir kurulum konumunda alındıysa
+                    // PdfFilePath / CoverImagePath eski mutlak yolu işaret eder.
+                    // \Assets\ segmentinden sonrasını alıp mevcut BaseDirectory ile
+                    // birleştirerek path'leri güncelliyoruz.
+                    static string? RebasePath(string? old, string newBase)
+                    {
+                        if (string.IsNullOrEmpty(old)) return old;
+                        int idx = old.IndexOf(Path.DirectorySeparatorChar + "Assets" + Path.DirectorySeparatorChar,
+                                              StringComparison.OrdinalIgnoreCase);
+                        if (idx < 0)
+                            idx = old.IndexOf('/' + "Assets" + '/', StringComparison.OrdinalIgnoreCase);
+                        if (idx < 0) return old;
+                        string rel = old.Substring(idx + 1); // "Assets\Uploads\kitap.pdf"
+                        return Path.Combine(newBase, rel);
+                    }
+
+                    try
+                    {
+                        string currentBase = AppDomain.CurrentDomain.BaseDirectory
+                            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                        using var fixConn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}");
+                        fixConn.Open();
+
+                        var updates = new System.Collections.Generic.List<(int id, string? pdf, string? cover)>();
+                        using (var getCmd = fixConn.CreateCommand())
+                        {
+                            getCmd.CommandText = "SELECT Id, PdfFilePath, CoverImagePath FROM Books";
+                            using var reader = getCmd.ExecuteReader();
+                            while (reader.Read())
+                            {
+                                int     id    = reader.GetInt32(0);
+                                string? pdf   = reader.IsDBNull(1) ? null : reader.GetString(1);
+                                string? cover = reader.IsDBNull(2) ? null : reader.GetString(2);
+                                string? np    = RebasePath(pdf,   currentBase);
+                                string? nc    = RebasePath(cover, currentBase);
+                                if (np != pdf || nc != cover)
+                                    updates.Add((id, np, nc));
+                            }
+                        }
+
+                        foreach (var (id, np, nc) in updates)
+                        {
+                            using var updCmd = fixConn.CreateCommand();
+                            updCmd.CommandText = "UPDATE Books SET PdfFilePath=@p, CoverImagePath=@c WHERE Id=@id";
+                            updCmd.Parameters.AddWithValue("@p",  (object?)np  ?? DBNull.Value);
+                            updCmd.Parameters.AddWithValue("@c",  (object?)nc  ?? DBNull.Value);
+                            updCmd.Parameters.AddWithValue("@id", id);
+                            updCmd.ExecuteNonQuery();
+                        }
+                        fixConn.Close();
+                    }
+                    catch (Exception pathEx)
+                    {
+                        // Path güncelleme başarısız olsa bile geri yükleme tamamdır
+                        System.Diagnostics.Debug.WriteLine("Path rebase hatası: " + pathEx.Message);
+                    }
+                    // ── PATH REBASE SONU ──────────────────────────────────────────────────
+
+                    MessageBox.Show("Veriler geri yüklendi.\nUygulama şimdi yeniden başlatılıyor...",
                         "Geri Yüklendi", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    Application.Exit();
+
+                    // Eski process tamamen kapandıktan SONRA yeni instance başlasın.
+                    // cmd /c timeout komutu 2 sn bekleyip uygulamayı tekrar açar.
+                    string exePath = Application.ExecutablePath;
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        Arguments = $"/c timeout /t 2 /nobreak >nul && start \"\" \"{exePath}\"",
+                        CreateNoWindow = true,
+                        WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                    });
+                    Environment.Exit(0);
                 }
                 catch (Exception ex)
                 {
